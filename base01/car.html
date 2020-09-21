@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Title</title>
+  <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+  <link type="text/css" rel="stylesheet" href="../main.css">
+  <style>
+    #glFullscreen {
+      width: 100%;
+      height: 100vh;
+      min-width: 640px;
+      min-height: 360px;
+      position: relative;
+      overflow: hidden;
+      z-index: 0;
+    }
+
+    #example {
+      width: 100%;
+      height: 100%;
+      top: 0;
+      left: 0;
+      background-color: #000000;
+    }
+
+    #feedback {
+      color: darkorange;
+    }
+
+    #dat {
+      user-select: none;
+      position: absolute;
+      left: 0;
+      top: 0;
+      z-Index: 200;
+    }
+  </style>
+</head>
+<body>
+<div id="glFullscreen">
+  <canvas id="example"></canvas>
+</div>
+<div id="info">
+  <a href="https://threejs.org" target="_blank" rel="noopener"> three.js</a>
+  <div id="feedback"></div>
+  <script type="module">
+    'use strict';
+    import * as THREE from '../build/three.module.js'
+
+    import {TrackballControls} from "../static/jsm/controls/TrackballControls.js";
+
+    import {MTLLoader} from "../static/jsm/loaders/MTLLoader.js";
+    import {OBJLoader2} from "../static/jsm/loaders/OBJLoader2.js";
+    import {MtlObjBridge} from "../static/jsm/loaders/obj2/bridge/MtlObjBridge.js";
+
+    import {OutlinePass} from '../static/jsm/postprocessing/OutlinePass.js'
+    import {EffectComposer} from "../static/jsm/postprocessing/EffectComposer.js";
+    import {RenderPass} from "../static/jsm/postprocessing/RenderPass.js";
+    import {ShaderPass} from "../static/jsm/postprocessing/ShaderPass.js";
+    import {FXAAShader} from "../static/jsm/shaders/FXAAShader.js";
+
+    var camera, scene, renderer, boxMaterial, finalMesh, composer,
+      geometry, fillMaterial, lineMaterial, fillMesh, lineMesh, boxHelper, group;
+    let outline_objects = []
+    init()
+    animate()
+
+    function init() {
+      renderer = new THREE.WebGL1Renderer({
+        canvas: document.getElementById("example"),
+        antialias: true,
+        autoClear: true
+      });
+      renderer.setPixelRatio(window.devicePixelRatio);
+      renderer.setSize(window.innerWidth, window.innerHeight); //设置Canvas画布大小
+      document.body.appendChild(renderer.domElement); //将画布渲染器绑定到新增的dom节点上；
+
+      camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+      camera.position.z = 10;
+
+
+      scene = new THREE.Scene();
+      scene.add(camera)
+
+      // todo
+      composer = new EffectComposer(renderer)
+      let renderPass = new RenderPass(scene, camera)
+      composer.addPass(renderPass)
+      let outlinePass = new OutlinePass(new THREE.Vector2(window.innerWidth, window.innerHeight), scene, camera)
+      composer.addPass(outlinePass)
+
+      //添加纹理
+      // new THREE.TextureLoader().load("/outline/tri_pattern.jpg", function (texture) {
+      //   outlinePass.patternTexture = texture;
+      //   texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+      // });
+
+      geometry = new THREE.BoxGeometry(1, 1, 1);
+      boxMaterial = new THREE.MeshBasicMaterial({color: '#ff2850'});
+
+      finalMesh = new THREE.Mesh(geometry, boxMaterial);
+      group = new THREE.Group();
+
+
+      group.add(finalMesh);
+      scene.add(group);
+
+      outlinePass.edgeStrength = 3.0;
+      outlinePass.edgeGlow = 1;
+      outlinePass.edgeThickness = 1.0;
+      outlinePass.pulsePeriod = 3;
+      outlinePass.visibleEdgeColor = '#ffffff';
+      //添加物体对象
+      outline_objects.push(finalMesh);
+      outlinePass.selectedObjects = outline_objects;
+      console.log("outline", outlinePass)
+
+    }
+
+    function animate() {
+      requestAnimationFrame(animate)
+      render()
+    }
+
+    function render() {
+      group.rotation.x += 0.01;
+      group.rotation.y += 0.02;
+      composer.render();
+      // renderer.render(scene, camera)
+    }
+
+
+  </script>
+</div>
+</body>
+</html>

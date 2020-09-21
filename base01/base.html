@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Document</title>
+    <style type="text/css">
+        html,
+        body {
+            margin: 0;
+            height: 100%;
+        }
+
+        canvas {
+            display: block;
+        }
+    </style>
+</head>
+
+<body onload="draw();">
+
+</body>
+<!-- 引入Three.js -->
+<script src="../build/three.js"></script>
+<!-- 引入OrbitControls控制器js库 -->
+<script src="../static/jsm/controls/OrbitControls.js"></script>
+<!--<script src="./lib/OrbitControls.js"></script>-->
+<script>
+    //定义渲染器变量
+    var renderer;
+
+    //定义初始化渲染器
+    function initRender() {
+        renderer = new THREE.WebGLRenderer();
+        renderer.setSize(window.innerWidth, window.innerHeight); //设置Canvas画布大小
+        document.body.appendChild(renderer.domElement); //将画布渲染器绑定到新增的dom节点上；
+    }
+
+    //定义相机
+    var camera;
+
+    //初始化相机
+    function initCamera() {
+        camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 1, 10000);
+        camera.position.set(0, 0, 400);
+    }
+
+    //定义场景
+    var scene;
+
+    //初始化场景
+    function initScene() {
+        scene = new THREE.Scene();
+        //辅助工具
+        var helper = new THREE.AxesHelper(900);
+        scene.add(helper);
+    }
+
+    //定义光源
+    var light;
+    // //初始化光源
+    function initLight() {
+        scene.add(new THREE.AmbientLight(0xffffff)); //加入环境光
+        // light = new THREE.DirectionalLight(0xffffff); //加入平行光
+        // light.position.set(-50, 20, -50); //设置光源位置
+        scene.add(light); //光源也需要加入到场景
+    }
+
+    //定义模型初始化函数，要点是材质和基础模型
+    function initModel() {
+        var material = new THREE.MeshLambertMaterial({ //材质
+            color: 0xff0000,
+            wireframe: true
+        });
+        //定义基础模型，并贴上上面的定义的材质
+        var cube = new THREE.Mesh(new THREE.BoxGeometry(100, 100, 100, 1, 1, 1), material);
+        scene.add(cube);
+    }
+
+    //定义用于互交的轨道控制器
+    var controls; //定义控制器变量
+
+    function initControls() {
+        //定义控制器核心
+        controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDampling = true; //使动画循环使用时阻尼或自转 意思是否有惯性
+        controls.enableZoom = false; //是否允许缩放
+        controls.enablePan = false; //是否开启鼠标右键拖拽
+        controls.autoRotate = true; //是否允许自动旋转
+        controls.dampingFactor = 0.25; //动态阻尼系数：就是鼠标拖拽旋转灵敏度
+        controls.minDistance = 200; //设置相机距离原点的最近距离；
+        controls.maxDistance = 600; //设置相机距离原点的最远距离；
+    }
+
+    function animate() {
+        //更新控制器
+        controls.update();
+        render();
+        requestAnimationFrame(animate);
+    }
+
+    //定义渲染触发函数
+    function render() {
+        renderer.render(scene, camera);
+    }
+
+    //窗口变动触发的函数
+    function onWindowResize() {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camere.updateProjectionMatrix();
+        render();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+
+    //全部方法入口
+    function draw() {
+        initRender();
+        initScene();
+        initCamera();
+        initModel();
+        initLight();
+        initControls();
+
+        animate();
+        window.onresize = onWindowResize;
+    }
+</script>
+
+</html>
