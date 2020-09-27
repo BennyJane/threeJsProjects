@@ -1,47 +1,805 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Title</title>
-    <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
-    <link type="text/css" rel="stylesheet" href="../main.css">
-    <style>
-        #glFullscreen {
-            width: 100%;
-            height: 100vh;
-            min-width: 640px;
-            min-height: 360px;
-            position: relative;
-            overflow: hidden;
-            z-index: 0;
-        }
+  <meta charset="UTF-8"/>
+  <title>Title</title>
+  <meta
+          name="viewport"
+          content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0"
+  />
+  <link type="text/css" rel="stylesheet" href="../main.css"/>
+  <style>
+    #glFullscreen {
+      width: 100%;
+      height: 100vh;
+      min-width: 640px;
+      min-height: 360px;
+      position: relative;
+      overflow: hidden;
+      z-index: 0;
+    }
 
-        #example {
-            width: 100%;
-            height: 100%;
-            top: 0;
-            left: 0;
-            background-color: #000000;
-        }
+    #example {
+      width: 100%;
+      height: 100%;
+      top: 0;
+      left: 0;
+      background-color: #000000;
+    }
 
-        #feedback {
-            color: darkorange;
-        }
-    </style>
+    #feedback {
+      color: darkorange;
+    }
+  </style>
 </head>
+
 <body>
 <div id="info">
-    <a href="https://threejs.org" target="_blank" rel="noopener"> three.js</a>
-    <div id="feedback"></div>
+  <a href="https://threejs.org" target="_blank" rel="noopener"> three.js</a>
+  <div id="feedback"></div>
+  <script type="module">
+    "use strict";
+    import * as THREE from "../build/three.module.js";
+    import {EffectComposer} from "../static/jsm/postprocessing/EffectComposer.js";
+    import {RenderPass} from "../static/jsm/postprocessing/RenderPass.js";
+    import {ShaderPass} from "../static/jsm/postprocessing/ShaderPass.js";
+    import {UnrealBloomPass} from "../static/jsm/postprocessing/UnrealBloomPass.js";
+    import {TWEEN} from "../static/jsm/libs/tween.module.min.js";
+    // 自定义的函数
+    import {
+      convertColor,
+      randomColor,
+      baseControls,
+      basePlane
+    } from "../lib/base.js";
+    import {
+      baseLightBar,
+      lightBarParticlesTexture
+    } from "../lib/lightBar.js";
+
+    var camera, scene, renderer, geometry;
+    var controls;
+    var H = 0;
+    const DEFAULT = true;
+    var params = new (function () {
+      this.earthSpeed = 1;
+      this.ambientLight = DEFAULT; //环境光
+      this.directionalLight = false; //平行光
+      this.pointLight = false; //点光源
+      this.showEarthCopy = DEFAULT; //显示外层透明地球
+      this.showLayer = DEFAULT; //添加 遮罩层
+      this.showFlyLine = DEFAULT; // 是否显示飞线
+      this.showEarthLine = DEFAULT; // 是否显示地球线(真正的渐变线条)
+      this.showParticle = DEFAULT; //是否显示粒子特效的粒子(线)
+      // this.showOuterPoints = false //添加外层粒子
+      this.showOuterPoints = DEFAULT; //添加外层粒子
+      this.usePass = DEFAULT; //后期处理
+      this.strength = 0.05; //处理强度
+      this.showDots = true;
+      this.showLines = true;
+      this.minDistance = 50;
+      this.limitConnections = false;
+      this.maxConnections = 14;
+      this.particleCount = 440;
+    })();
+    var R = 200; // 地球半径
+    var range = 1000; //粒子运动边界
+    var COUNT = 300; // 遮罩层 单位数量
+    var loader = new THREE.TextureLoader();
+    var light = {};
+    var Line3Group = [];
+    var positionList = {
+      Angola: [17.87, -11.2],
+      Afghanistan: [67.71, 33.94],
+      Albania: [20.17, 41.15],
+      Algeria: [1.66, 28.03],
+      Andorra: [1.52, 42.51],
+      Anguilla: [-63.07, 18.22],
+      Argentina: [-63.62, -38.42],
+      Armenia: [45.04, 40.07],
+      Ascension: [-90.94, 30.2],
+      Australia: [133.78, -25.27],
+      Austria: [14.55, 47.52],
+      Azerbaijan: [47.58, 40.14],
+      Bahamas: [-77.4, 25.03],
+      Bahrain: [50.56, 26.07],
+      Bangladesh: [90.36, 23.68],
+      Barbados: [-59.54, 13.19],
+      Belarus: [27.95, 53.71],
+      Belgium: [4.47, 50.5],
+      Belize: [-88.5, 17.19],
+      Benin: [2.32, 9.31],
+      "Bermuda Is": [-64.75, 32.31],
+      Bolivia: [-63.59, -16.29],
+      Botswana: [24.68, -22.33],
+      Brazil: [-51.93, -14.24],
+      Brunei: [114.73, 4.54],
+      Bulgaria: [25.49, 42.73],
+      "Burkina-faso": [-1.56, 12.24],
+      Burma: [95.96, 21.92],
+      Burundi: [29.92, -3.37],
+      Cameroon: [12.35, 7.37],
+      Canada: [-106.35, 56.13],
+      "Cayman Is": [-117.64, 33.64],
+      "Central African Republic": [20.94, 6.61],
+      Chad: [18.73, 15.45],
+      Chile: [-71.54, -35.68],
+      China: [104.2, 35.86],
+      Colombia: [-74.3, 4.57],
+      Congo: [15.83, -0.23],
+      "Cook Is": [-90.49, 47.61],
+      "Costa Rica": [-83.75, 9.75],
+      Croatia: [15.2, 45.1],
+      Cuba: [-77.78, 21.52],
+      Cyprus: [33.43, 35.13],
+      "Czech Republic": [15.47, 49.82],
+      Denmark: [9.5, 56.26],
+      Djibouti: [42.59, 11.83],
+      "Dominica Rep": [-0.19, 51.52],
+      Ecuador: [-78.18, -1.83],
+      Egypt: [30.8, 26.82],
+      "EI Salvador": [-88.9, 13.79],
+      Estonia: [25.01, 58.6],
+      Ethiopia: [40.49, 9.15],
+      Fiji: [178.07, -17.71],
+      Finland: [25.75, 61.92],
+      France: [2.21, 46.23],
+      "French Guiana": [-53.13, 3.93],
+      Gabon: [11.61, -0.8],
+      Gambia: [-15.31, 13.44],
+      Georgia: [-82.9, 32.17],
+      Germany: [10.45, 51.17],
+      Ghana: [-1.02, 7.95],
+      Gibraltar: [-5.35, 36.14],
+      Greece: [21.82, 39.07],
+      Grenada: [-61.68, 12.12],
+      Guam: [144.79, 13.44],
+      Guatemala: [-90.23, 15.78],
+      Guinea: [-9.7, 9.95],
+      Guyana: [-58.93, 4.86],
+      Haiti: [-72.29, 18.97],
+      Honduras: [-86.24, 15.2],
+      "Hong Kong": [114.11, 22.4],
+      Hungary: [19.5, 47.16],
+      Iceland: [-19.02, 64.96],
+      India: [78.96, 20.59],
+      Indonesia: [113.92, -0.79],
+      Iran: [53.69, 32.43],
+      Iraq: [43.68, 33.22],
+      Ireland: [-8.24, 53.41],
+      Israel: [34.85, 31.05],
+      Italy: [12.57, 41.87],
+      "Ivory Coast": [-5.55, 7.54],
+      Jamaica: [-77.3, 18.11],
+      Japan: [138.25, 36.2],
+      Jordan: [36.24, 30.59],
+      Kampuchea: [105.46, 12.0],
+      Kazakstan: [66.92, 48.02],
+      Kenya: [37.91, -0.02],
+      Korea: [127.98, 37.66],
+      Kuwait: [47.48, 29.31],
+      Kyrgyzstan: [74.77, 41.2],
+      Laos: [102.5, 19.86],
+      Latvia: [24.6, 56.88],
+      Lebanon: [35.86, 33.85],
+      Lesotho: [28.23, -29.61],
+      Liberia: [-9.43, 6.43],
+      Libya: [17.23, 26.34],
+      Liechtenstein: [9.56, 47.17],
+      Lithuania: [23.88, 55.17],
+      Luxembourg: [6.13, 49.82],
+      Macao: [113.54, 22.2],
+      Madagascar: [46.87, -18.77],
+      Malawi: [34.3, -13.25],
+      Malaysia: [101.98, 4.21],
+      Maldives: [73.54, 1.98],
+      Mali: [-4.0, 17.57],
+      Malta: [14.38, 35.94],
+      "Mariana Is": [-43.41, -20.37],
+      Martinique: [-61.02, 14.64],
+      Mauritius: [57.55, -20.35],
+      Mexico: [-102.55, 23.63],
+      Monaco: [7.42, 43.74],
+      Mongolia: [103.85, 46.86],
+      "Montserrat Is": [-62.19, 16.74],
+      Morocco: [-7.09, 31.79],
+      Mozambique: [35.53, -18.67],
+      Namibia: [18.49, -22.96],
+      Nauru: [166.93, -0.52],
+      Nepal: [84.12, 28.39],
+      "Netheriands Antilles": [-68.26, 12.2],
+      Netherlands: [5.29, 52.13],
+      "New Zealand": [174.89, -40.9],
+      Nicaragua: [-85.21, 12.87],
+      Niger: [8.08, 17.61],
+      Nigeria: [8.68, 9.08],
+      "North Korea": [127.51, 40.34],
+      Norway: [8.47, 60.47],
+      Oman: [55.98, 21.47],
+      Pakistan: [69.35, 30.38],
+      Panama: [-80.78, 8.54],
+      "Papua New Cuinea": [143.96, -6.31],
+      Paraguay: [-58.44, -23.44],
+      Peru: [-75.02, -9.19],
+      Philippines: [121.77, 12.88],
+      Poland: [19.15, 51.92],
+      "French Polynesia": [-149.41, -17.68],
+      Portugal: [-8.22, 39.4],
+      "Puerto Rico": [-66.59, 18.22],
+      Qatar: [51.18, 25.35],
+      Reunion: [55.54, -21.12],
+      Romania: [24.97, 45.94],
+      Russia: [105.32, 61.52],
+      "Saint Lueia": [-60.98, 13.91],
+      "Saint Vincent": [7.64, 45.75],
+      "Samoa Eastern": [-121.83, 37.35],
+      "Samoa Western": [-124.15, 40.8],
+      "San Marino": [12.46, 43.94],
+      "Sao Tome and Principe": [6.61, 0.19],
+      "Saudi Arabia": [45.08, 23.89],
+      Senegal: [-14.45, 14.5],
+      Seychelles: [55.49, -4.68],
+      "Sierra Leone": [-11.78, 8.46],
+      Singapore: [103.82, 1.35],
+      Slovakia: [19.7, 48.67],
+      Slovenia: [15.0, 46.15],
+      "Solomon Is": [-97.37, 38.92],
+      Somali: [46.2, 5.15],
+      "South Africa": [22.94, -30.56],
+      Spain: [-3.75, 40.46],
+      "Sri Lanka": [80.77, 7.87],
+      "St.Lucia": [-60.98, 13.91],
+      "St.Vincent": [-91.06, 29.99],
+      Sudan: [30.22, 12.86],
+      Suriname: [-56.03, 3.92],
+      Swaziland: [31.47, -26.52],
+      Sweden: [18.64, 60.13],
+      Switzerland: [8.23, 46.82],
+      Syria: [39.0, 34.8],
+      Taiwan: [120.96, 23.7],
+      Tajikstan: [71.28, 38.86],
+      Tanzania: [34.89, -6.37],
+      Thailand: [100.99, 15.87],
+      Togo: [0.82, 8.62],
+      Tonga: [-175.2, -21.18],
+      "Trinidad and Tobago": [-61.22, 10.69],
+      Tunisia: [9.54, 33.89],
+      Turkey: [35.24, 38.96],
+      Turkmenistan: [59.56, 38.97],
+      Uganda: [32.29, 1.37],
+      Ukraine: [31.17, 48.38],
+      "United Arab Emirates": [53.85, 23.42],
+      "United Kingdom": [-3.44, 55.38],
+      "United States": [-95.71, 37.09],
+      Uruguay: [-55.77, -32.52],
+      Uzbekistan: [64.59, 41.38],
+      Venezuela: [-66.59, 6.42],
+      Vietnam: [108.28, 14.06],
+      Yemen: [48.52, 15.55],
+      Yugoslavia: [121.02, 14.48],
+      Zimbabwe: [29.15, -19.02],
+      Zaire: [21.76, -4.04],
+      Zambia: [27.85, -13.13]
+    };
+    var mark = {
+      marking: [
+        {
+          name: "中国首都-北京",
+          pos: [116.4551, 40.2539]
+        },
+        {
+          name: "俄罗斯首都-莫斯科",
+          pos: [37.35, 55.45]
+        },
+        {
+          name: "美国首都-华盛顿",
+          pos: [-77.02182, 38.53707]
+        },
+        {
+          name: "澳大利亚首都-堪培拉",
+          pos: [149.07, -35.17]
+        },
+        {
+          name: "巴西首都-巴西利亚",
+          pos: [-47.56, -15.47]
+        },
+        {
+          name: "南非首都-开普敦",
+          pos: [18, -34]
+        },
+        {
+          name: "英国首都-伦敦",
+          pos: [0.5, 51.3]
+        }
+      ]
+    };
+    var flyLines = [];
+    var flyLinesGroup = new THREE.Group();
+    var clock = new THREE.Clock();
+    var earthParticles = new THREE.Object3D();
+    var earth,
+      earthCopy,
+      particle,
+      outPointCloud,
+      bloomPass,
+      pass,
+      group,
+      positions,
+      colors,
+      particles,
+      pointCloud,
+      particlePositions,
+      linesMesh;
+    var shineLines = new THREE.Group();
+    var shinePoints = new THREE.Group();
+    var shineAll = new THREE.Group();
+    var earthLine = new THREE.Group();
+    var allGroup = new THREE.Group();
+    var lightCross = new THREE.Group();
+    var number = 0;
+    var particleCanRun = false; //开启粒子动画
+    var lineCanBeStrong = true; //地球线 渐渐出现(在动画中宽度渐渐变大)
+    var particlesData = [];
+    var maxParticleCount = 500;
+    var particleCount = 500;
+    let resolution = new THREE.Vector2(
+      window.innerWidth,
+      window.innerHeight
+    );
+    var lightBarList = baseLightBar(3, 10, "#51ff3e");
+    var clock = new THREE.Clock();
+    let raycaster = new THREE.Raycaster();
+    var mouse = new THREE.Vector2();
+    init();
+    loadFile(function () {
+      camera.position.set(450, 450, 450);
+      loadLayer();
+      addLight();
+      scene.add(allGroup);
+      // 添加地球表面的点
+      createEarthParticles();
+      scene.add(earthParticles)
+    });
+    animate();
+
+    function init() {
+      renderer = new THREE.WebGL1Renderer({
+        canvas: document.getElementById("example"),
+        antialias: true,
+        autoClear: true
+      });
+      renderer.setPixelRatio(window.devicePixelRatio);
+      renderer.setSize(window.innerWidth, window.innerHeight); //设置Canvas画布大小
+      renderer.toneMapping = THREE.ReinhardToneMapping;
+      // todo 必须打开该阴影，才能生效
+      renderer.shadowMapEnabled = true;
+      document
+        .getElementById("glFullscreen")
+        .appendChild(renderer.domElement); //将画布渲染器绑定到新增的dom节点上；
+
+      scene = new THREE.Scene();
+      // scene.add(new THREE.GridHelper(10, 50))
+
+      camera = new THREE.PerspectiveCamera(
+        45,
+        window.innerWidth / window.innerHeight,
+        10,
+        10000
+      );
+      camera.position.set(450, 450, 450);
+      // camera.lookAt(0, 0, 0);
+
+      scene.add(new THREE.AmbientLight(0xaaaaaa, 1));
+      // 添加窗口滚动
+      controls = baseControls(camera, renderer.domElement);
+      controls.addEventListener("change", render);
+
+      // ========================================== 添加点击事件 ====================================
+      window.addEventListener("resize", onWindowResize, false);
+      // window.addEventListener("click", onDocumentMouseClick, false)
+    }
+
+    // ========================================== 添加物体 ========================================
+    // ================== add earth
+    function loadFile(callback) {
+      loader.load("images/earth_line2.png", textureNormal => {
+        earth = new THREE.Mesh(new THREE.SphereBufferGeometry(R, 50, 50), new THREE.MeshPhongMaterial({
+          transparent: true,
+          opacity: 0.9,
+          shininess: 80,
+          specular: '#57FCF6',
+          shadowSide: THREE.DoubleSide,
+          map: textureNormal,
+        }));
+        earthCopy = new THREE.Mesh(new THREE.SphereBufferGeometry(R + 25, 50, 50), new THREE.MeshPhongMaterial({
+          transparent: true,
+          opacity: 0.1,
+          map: textureNormal
+        }));
+
+        allGroup.add(earth, earthCopy);
+        earth.receiveShadow = true;
+        earthCopy.visible = params.showEarthCopy;
+        callback()
+      })
+    }
+
+    // 添加外层球体上的点与线条
+    function loadLayer() {
+      group = new THREE.Group();
+      scene.add(group);
+      const segments = maxParticleCount * maxParticleCount;
+      // const segments = maxParticleCount;
+
+      // 构造制定长度的数据
+      positions = new Float32Array(segments * 3);
+      colors = new Float32Array(segments * 3);
+
+      const pMaterial = new THREE.PointsMaterial({
+        // 设置点材质
+        color: '#07D46E',
+        size: 3,
+        blending: THREE.AdditiveBlending, // 什么意思 blending 混合
+        transparent: true,
+        sizeAttenuation: false
+      });
+
+      particles = new THREE.BufferGeometry();
+      particlePositions = new Float32Array(maxParticleCount * 3);
+
+      const p = new THREE.Vector3();
+
+      for (let i = 1, l = maxParticleCount; i <= l; i++) {
+        //  const p = getPos(R+30, Math.PI * 2 * Math.random(), Math.PI * 2 * Math.random())
+        // 计算球面上的点 的坐标
+        const phi = Math.acos(-1 + (2 * i) / l);
+        const theta = Math.sqrt(l * Math.PI) * phi;
+        // 球体坐标转化为三维空间坐标 ==> 转化为最外层的点
+        p.setFromSphericalCoords(R + 50, phi, theta);
+
+        const x = p.x;
+        const y = p.y;
+        const z = p.z;
+        // 每三位一作为点坐标
+        particlePositions[i * 3] = x;
+        particlePositions[i * 3 + 1] = y;
+        particlePositions[i * 3 + 2] = z;
+
+        // add it to the geometry
+        particlesData.push({
+          // 修改这个值,调整点移动的速度
+          velocity: new THREE.Vector3((-1 + Math.random() * 2) / 5, (-1 + Math.random() * 2) / 5, (-1 + Math.random() * 2) / 5),
+          jiao: [phi, theta],
+          numConnections: 0
+        });
+
+      }
+      // drawRange: 用于判断几何体的哪个部分需要被渲染, 不应该直接设置, 而是通过 setDrawRange() 设置
+      particles.setDrawRange(0, particleCount);
+      // 通过 setAttribute 添加 attribute 属性；
+      // 通过 hashmap 存储该几何体相关的属性，hashmap 的 id 是当前 attribute 的名称，值是相应的 buffer。
+      // 数字3, 表明每3位一组
+      // ?? setUsage
+      particles.setAttribute('position', new THREE.BufferAttribute(particlePositions, 3).setUsage(THREE.DynamicDrawUsage));
+
+      // create the particle system
+      pointCloud = new THREE.Points(particles, pMaterial);
+      group.add(pointCloud);
+
+      const geometry = new THREE.BufferGeometry();
+
+      geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3).setUsage(THREE.DynamicDrawUsage));
+      geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3).setUsage(THREE.DynamicDrawUsage));
+
+      geometry.computeBoundingSphere(); //计算当前几何体的的边界球形
+
+      geometry.setDrawRange(0, 0);
+
+      const material = new THREE.LineBasicMaterial({
+        vertexColors: true,
+        blending: THREE.AdditiveBlending,
+        transparent: true,
+        color: '#07D46E'
+      });
+
+      linesMesh = new THREE.LineSegments(geometry, material);
+      group.add(linesMesh);
+
+      renderer.outputEncoding = THREE.sRGBEncoding;
+    }
+
+    // 设置外层球体上, 线条的动画
+    function layerAnimate() {
+      let vertexpos = 0;
+      let colorpos = 0;
+      let numConnected = 0;
+      const O = new THREE.Vector3(0, 0, 0);  // 坐标原点
+
+      // 初始化点数据中 numConnections
+      for (let i = 0; i < particleCount; i++)
+        particlesData[i].numConnections = 0;
+
+      for (let i = 0; i < particleCount; i++) {
+
+        // get the particle: 在 loadLayer 中生成的随机偏移量
+        const particleData = particlesData[i];
+        // 修改球面点的位置, 变化量 由每个坐标数据对应的 particleData中的velocity参数决定
+        particlePositions[i * 3] += particleData.velocity.x;
+        particlePositions[i * 3 + 1] += particleData.velocity.y;
+        particlePositions[i * 3 + 2] += particleData.velocity.z;
+
+        // 创建新的点位置: 移动后的点
+        const v = new THREE.Vector3(particlePositions[i * 3], particlePositions[i * 3 + 1], particlePositions[i * 3 + 2]);
+
+        // 控制点 移动的范围: 距离圆点超过55的时候, 坐标反向移动；
+        // 位于 区间内的点, 朝向一个方向移动
+        if (v.distanceTo(O) > R + 70) {
+          // 取负值
+          particleData.velocity.x = -particleData.velocity.x;
+          particleData.velocity.y = -particleData.velocity.y;
+          particleData.velocity.z = -particleData.velocity.z;
+        } else if (v.distanceTo(O) < R + 49) {
+          particleData.velocity.x = +particleData.velocity.x;
+          particleData.velocity.y = +particleData.velocity.y;
+          particleData.velocity.z = +particleData.velocity.z;
+        }
+        // limitConnections:false ； maxConnections: 14 限制每个点的连接最大数量
+        if (params.limitConnections && particleData.numConnections >= params.maxConnections)
+          continue;
+
+        // Check collision: 判断点是否碰撞, 只需要检测剩余的点是否存在重合就可以了
+        for (let j = i + 1; j < particleCount; j++) {
+
+          const particleDataB = particlesData[j];
+          if (params.limitConnections && particleDataB.numConnections >= params.maxConnections)
+            continue;
+
+          const dx = particlePositions[i * 3] - particlePositions[j * 3];
+          const dy = particlePositions[i * 3 + 1] - particlePositions[j * 3 + 1];
+          const dz = particlePositions[i * 3 + 2] - particlePositions[j * 3 + 2];
+          //计算两个点之间的具体
+          const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+          // minDistance: 50, 距离小于 50的点的处理
+          if (dist < params.minDistance) {
+
+            particleData.numConnections++;
+            particleDataB.numConnections++;
+            // 距离越接近, 透明度越高
+            let alpha = 1.0 - dist / params.minDistance;
+            // let alpha = 1.0;
+
+            // 更新 positions 与 colors 内的数据
+            positions[vertexpos++] = particlePositions[i * 3];
+            positions[vertexpos++] = particlePositions[i * 3 + 1];
+            positions[vertexpos++] = particlePositions[i * 3 + 2];
+
+            positions[vertexpos++] = particlePositions[j * 3];
+            positions[vertexpos++] = particlePositions[j * 3 + 1];
+            positions[vertexpos++] = particlePositions[j * 3 + 2];
+
+            colors[colorpos++] = alpha;
+            colors[colorpos++] = alpha;
+            colors[colorpos++] = alpha;
+
+            colors[colorpos++] = alpha;
+            colors[colorpos++] = alpha;
+            colors[colorpos++] = alpha;
+            //
+            numConnected++;
+          }
+        }
+      }
+
+      // console.log(numConnected);
+      // ?? 该变量值的作用 numConnected: 用于确定那部分需要被渲染
+      linesMesh.geometry.setDrawRange(0, numConnected * 2);
+      linesMesh.geometry.attributes.position.needsUpdate = true;
+      linesMesh.geometry.attributes.color.needsUpdate = true;
+      pointCloud.geometry.attributes.position.needsUpdate = true;
+    }
+
+    function addLight() {
+      const ambientLight = new THREE.AmbientLight('rgba(255,252,255)', 1);
+      scene.add(ambientLight);
+
+      // 添加平行光  ==> 不显示
+      const directionalLight = new THREE.DirectionalLight('#57FCF6', 10);
+      directionalLight.position.set(R * 4, R * 4, R * 4);
+      scene.add(directionalLight);
+      // 点光源 ==> 不显示
+      const pointLight = new THREE.PointLight("#57FCF6", 10);
+      pointLight.position.set(R * 4, R * 4, R * 4);
+      scene.add(pointLight);
+
+      // 设置光源的可见性
+      ambientLight.visible = params.ambientLight;
+      directionalLight.visible = params.directionalLight;  // 不显示
+      pointLight.visible = params.pointLight;  // 不显示
+
+      light.ambientLight = ambientLight;
+      light.directionalLight = directionalLight;
+      light.pointLight = pointLight
+    }
+
+    function createEarthParticles() {
+      // 必须先创建一个节点, 作为canvas的画板, 绘制点
+      const earthImg = document.createElement('img');
+      earthImg.src = 'images/earthSpec.png';
+      // 图片加载后,再绘制图片
+      earthImg.onload = () => {
+        let earthCanvas = document.createElement('canvas'),
+          earthCtx = earthCanvas.getContext('2d');
+        // 设置画板的大小
+        earthCanvas.width = earthImg.width;
+        earthCanvas.height = earthImg.height;
+        // 在canvas上绘制图片: 图片实例, 坐标位置(2个参数), 图片尺寸(两个参数)
+        earthCtx.drawImage(earthImg, 0, 0, earthImg.width, earthImg.height);
+        // 获取图片的像素数据, 每个像素点 对应四个数值: r g b a
+        const earthImgData = earthCtx.getImageData(0, 0, earthImg.width, earthImg.height);
+        const BLINT_SPEED = 0.05;
+        let positions = [];
+        let materials = [];
+        let sizes = [];
+        for (let i = 0; i < 2; i++) {
+          positions[i] = {
+            positions: []
+          };
+          sizes[i] = {
+            sizes: []
+          };
+          const mat = new THREE.PointsMaterial({
+            size: 5,
+            color: new THREE.Color(0x03d98e),
+            map: new THREE.TextureLoader().load("images/dot.png"),
+            depthWrite: false,
+            depthTest: false,
+            transparent: true,
+            opacity: 0,  // 透明度为0 , 默认不显示
+            side: THREE.FrontSide,
+            blending: THREE.AdditiveBlending
+          });
+          let n = i / 2;
+          mat.t_ = n * Math.PI * 2;  // 取值: 0 => 0 ；1=> 2 * pi
+          mat.speed_ = BLINT_SPEED;
+          mat.min_ = .2 * Math.random() + .5;
+          mat.delta_ = .1 * Math.random() + .1;
+          mat.opacity_coef_ = 1;
+          materials.push(mat)
+        }
+        // 绘制等大小的球体
+        let spherical = new THREE.Spherical();
+        spherical.radius = R;
+        const step = 250;
+        for (let i = 0; i < step; i++) {
+          let vec = new THREE.Vector3();
+          // let radians = step * (1 - Math.sin(i / step * Math.PI)) / step + .5; // 每个纬线圈内的角度均分
+          let radians = (1 - Math.sin(i / step * Math.PI)) + .5; // 每个纬线圈内的角度均分
+          for (let j = 0; j < step; j += radians) {
+            let c = j / step, // 底图上的横向百分比  ==> 纬度方向的分割: 0~1
+              f = i / step, // 底图上的纵向百分比  ==> 经度方向的分割: 0~1
+              index = Math.floor(2 * Math.random());  // 随机结果 0 OR 1
+            const pos = positions[index];
+            const size = sizes[index];
+            if (isLandByUV(c, f)) { // 根据横纵百分比判断在底图中的像素值的透明度是否为0
+              // 范围: -Math.PI/2 ~ Math.PI * 1.5
+              // 必须是这个范围, 否则 点会与下面的图对不上
+              spherical.theta = c * Math.PI * 2 - Math.PI / 2; // 横纵百分比转换为theta和phi夹角
+              // spherical.theta = c * Math.PI * 2; // 横纵百分比转换为theta和phi夹角
+              spherical.phi = f * Math.PI; // 横纵百分比转换为theta和phi夹角
+              vec.setFromSpherical(spherical); // 夹角转换为世界坐标
+              pos.positions.push(vec.x);
+              pos.positions.push(vec.y);
+              pos.positions.push(vec.z);
+              //
+              if (j % 3 === 0) {
+                size.sizes.push(6.0)
+              }
+            }
+          }
+        }
+        for (let i = 0; i < positions.length; i++) {
+          let pos = positions[i],
+            size = sizes[i],
+            bufferGeom = new THREE.BufferGeometry,
+            typedArr1 = new Float32Array(pos.positions.length),
+            typedArr2 = new Float32Array(size.sizes.length);
+          // 将一般的数组转化为 Float32Array
+          for (let j = 0; j < pos.positions.length; j++) {
+            typedArr1[j] = pos.positions[j]
+          }
+          for (let j = 0; j < size.sizes.length; j++) {
+            typedArr2[j] = size.sizes[j]
+          }
+          bufferGeom.addAttribute("position", new THREE.BufferAttribute(typedArr1, 3));
+          bufferGeom.addAttribute('size', new THREE.BufferAttribute(typedArr2, 1));
+          bufferGeom.computeBoundingSphere();
+          // console.log(bufferGeom);
+          let particle = new THREE.Points(bufferGeom, materials[i]);
+          earthParticles.add(particle)
+        }
+
+        function isLandByUV(c, f) {
+          if (!earthImgData) { // 底图数据
+            console.error('data error!')
+          }
+          // 根据百分比, 计算图片中对应的坐标
+          const n = parseInt(earthImg.width * c); // 横坐标   根据横纵百分比计算图象坐标系中的坐标
+          const o = parseInt(earthImg.height * f); //纵坐标   根据横纵百分比计算图象坐标系中的坐标
+          // 计算坐标对应像素点的 A-alpha值, 判断透明度是否为0
+          // 计算思路: 像素点为整数,(10, 20) 位置的点之前有 10 * 每行像素点数量 + 20
+          // 每个像素点 的颜色由 4个数值记录, 所以再乘以4
+          return 0 === earthImgData.data[4 * (o * earthImgData.width + n)] // 查找底图中对应像素点的rgba值并判断
+        }
+
+        scene.add(earthParticles);
+      }
+    }
+
+    // ========================================== 添加运动事件 ========================================
+    function animate() {
+      render();
+      requestAnimationFrame(animate);
+
+      controls.update(clock.getDelta());
+      TWEEN.update();
+      //外层地球自转
+      if (earthCopy) {
+        earthCopy.rotateY(0.005)
+      }
+
+
+      //  添加外部球体上点与点之间的线条
+      if (particlesData && particlesData.length > 1) layerAnimate();
+
+      // 球面粒子闪烁: 必须添加该动画,地区内的圆点才会显示 ==> 默认为透明的
+      let objects = earthParticles.children;
+      objects.forEach(obj => {
+        let material = obj.material;
+        material.t_ += material.speed_;
+        // opacity_coef_=1
+        // 动态变化点的透明度
+        material.opacity = (Math.sin(material.t_) * material.delta_ + material.min_) * material.opacity_coef_;
+        // 更新材质
+        material.needsUpdate = true
+      })
+
+    }
+
+    function onWindowResize() {
+      var width = window.innerWidth;
+      var height = window.innerHeight;
+
+      // camera.aspect = width / height;
+      renderer.setSize(width, height);
+      camera.updateProjectionMatrix();
+      camera.position.set(450, 450, 450);
+      render();
+    }
+
+    function onDocumentMouseClick(event) {
+      event.preventDefault();
+      // 计算鼠标位置
+      mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+      mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+      raycaster.setFromCamera(mouse, camera);
+      // console.log(group.children)
+      let intersects = raycaster.intersectObjects(group.children);
+      console.log(intersects);
+      if (intersects.length > 0) {
+        let object = intersects[0].object;
+        object.layers.toggle(BLOOM_SCENE);
+        render();
+      }
+    }
+
+    function render() {
+      //
+      renderer.render(scene, camera);
+    }
+  </script>
 </div>
 <div id="glFullscreen">
-    <canvas id="example"></canvas>
+  <canvas id="example"></canvas>
 </div>
 </body>
-<script src="index.js"></script>
-<script src="../build/three.min.js"></script>
-<script type="module" src="../static/jsm/postprocessing/EffectComposer.js"></script>
-<script type="module" src="../static/jsm/postprocessing/RenderPass.js"></script>
-<script type="module" src="../static/jsm/postprocessing/ShaderPass.js"></script>
-<script type="module" src="../static/jsm/postprocessing/UnrealBloomPass.js"></script>
 </html>
