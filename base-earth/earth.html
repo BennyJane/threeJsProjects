@@ -56,6 +56,7 @@
       baseLightBar,
       lightBarParticlesTexture
     } from "../lib/lightBar.js";
+    import {geographicToVector, getSphereHeightPoints} from "./earthLib.js";
 
     var camera, scene, renderer, geometry;
     var controls;
@@ -337,7 +338,7 @@
     var allGroup = new THREE.Group();
     var lightCross = new THREE.Group();
     var number = 0;
-    var particleCanRun = false; //开启粒子动画
+    var particleCanRun = false; //开启粒子动画 ==> 默认打开后, 执行会报错
     var lineCanBeStrong = true; //地球线 渐渐出现(在动画中宽度渐渐变大)
     var particlesData = [];
     var maxParticleCount = 500;
@@ -355,10 +356,16 @@
       camera.position.set(450, 450, 450);
       loadLayer();
       addLight();
+      addOutPointCloud();
+      addLine();
+      addParticleEffect();  // 线的例子扩散效果
+      //粒子扩散动画 ==> 循环展示
+      particleAnimate();
+      addBoxFlyLine();
+      addLightPillars();
       scene.add(allGroup);
       // 添加地球表面的点
       createEarthParticles();
-      scene.add(earthParticles)
     });
     animate();
 
@@ -413,7 +420,7 @@
         }));
         earthCopy = new THREE.Mesh(new THREE.SphereBufferGeometry(R + 25, 50, 50), new THREE.MeshPhongMaterial({
           transparent: true,
-          opacity: 0.1,
+          opacity: 0.2,
           map: textureNormal
         }));
 
@@ -424,7 +431,7 @@
       })
     }
 
-    // 添加外层球体上的点与线条
+    // 添加外层球体上的动态的点与线条
     function loadLayer() {
       group = new THREE.Group();
       scene.add(group);
@@ -520,7 +527,6 @@
         particlesData[i].numConnections = 0;
 
       for (let i = 0; i < particleCount; i++) {
-
         // get the particle: 在 loadLayer 中生成的随机偏移量
         const particleData = particlesData[i];
         // 修改球面点的位置, 变化量 由每个坐标数据对应的 particleData中的velocity参数决定
@@ -620,6 +626,285 @@
       light.directionalLight = directionalLight;
       light.pointLight = pointLight
     }
+
+    // 外部 点点星光效果
+    function addOutPointCloud() {
+      // Geometry 作为 BufferGeometry 的替代品, 大型项目用 BufferGeometry
+      const geo = new THREE.Geometry();
+      /** 绕圈取点 **/
+      const vector = new THREE.Vector3();
+      for (let i = 1, l = 500; i <= l; i++) {
+        // 计算 反余弦弧度值
+        const phi = Math.acos(-1 + (2 * i) / l);
+        // 计算 平方根
+        const theta = Math.sqrt(l * Math.PI) * phi;
+        // 生成半径为R + 30 球体上的点
+        vector.setFromSphericalCoords(R + 30, phi, theta);
+
+        const v0 = new THREE.Vector3(vector.x, vector.y, vector.z);
+        geo.vertices.push(v0);
+
+        // 根据上面球体上的点, 再随机生成10个点
+        for (let j = 0; j < 5; j++) {
+          const v1 = v0.clone();
+          const v = new THREE.Vector3(v1.x * (1 + Math.random() / (j + 1)), v1.y * (1 + Math.random() / (j + 1)), v1.z * (1 + Math.random() / (j + 1)));
+          geo.vertices.push(v)
+        }
+
+      }
+      outPointCloud = new THREE.Points(geo, new THREE.PointsMaterial({
+        color: '#07D46E',
+        size: 1.5,
+        transparent: true, // 透明
+        opacity: 0.8
+      }));
+
+      outPointCloud.geometry.verticesNeedUpdate = true;
+
+      outPointCloud.visible = params.showOuterPoints;
+
+      allGroup.add(outPointCloud)
+    }
+
+    // 垂直球体的光线
+    function addLine() {
+      // const color1 = new THREE.Color('#79d4b9');
+      // const color1_1 = new THREE.Color('#734aff');
+      // const color1_2 = new THREE.Color('#ff9cb6');
+      // const color2 = new THREE.Color('#07D46E');
+      const color1 = new THREE.Color('#5df4f3');
+      const color1_1 = new THREE.Color('#5df4f3');
+      const color1_2 = new THREE.Color('#29f1af');
+      const color2 = new THREE.Color('#29f1af');
+      const color = [
+        color1.r, color1.g, color1.b,
+        color1_1.r, color1_1.g, color1_1.b,
+        color1_2.r, color1_2.g, color1_2.b,
+        color2.r, color2.g, color2.b
+      ];
+      //  遍历对象
+      for (let k in positionList) {
+        // 地理坐标 转化为 3维坐标; 然后生成利用放大的功能, 生成4个点
+        const v = geographicToVector(R, positionList[k][0], positionList[k][1]);
+        const random = (1 + Math.random() * 3) / 10;
+        const v1_1 = new THREE.Vector3(v.x * (1 + random * 3 / 8), v.y * (1 + random * 3 / 8), v.z * (1 + random * 3 / 8));
+        const v1_2 = new THREE.Vector3(v.x * (1 + random * 5 / 8), v.y * (1 + random * 5 / 8), v.z * (1 + random * 5 / 8));
+        const v2 = new THREE.Vector3(v.x * (1 + random), v.y * (1 + random), v.z * (1 + random));
+        // LineMaterial LineMaterial Line2 这两个three.js 中并没有找到相应的函数
+        const geometry = new THREE.BufferGeometry();
+        // 参考 官网案例: webgl_interactive_lines
+        let eachPoints = [
+          v.x, v.y, v.z,
+          v1_1.x, v1_1.y, v1_1.z,
+          v1_2.x, v1_2.y, v1_2.z,
+          v2.x, v2.y, v2.z
+        ];
+        geometry.setAttribute('position', new THREE.Float32BufferAttribute(eachPoints, 3));
+        geometry.setAttribute('color', new THREE.Float32BufferAttribute(color, 3));
+        const matLine = new THREE.LineBasicMaterial({
+          linewidth: 3, // px //后面动画控制 大小
+          vertexColors: THREE.VertexColors,
+          transparent: true
+        });
+
+        const line = new THREE.Line(geometry, matLine);
+        //  获取平滑曲线  ==> 为了添加例子扩散效果
+        const line3Curve3 = new THREE.CatmullRomCurve3([v, v2]);
+        Line3Group.push(line3Curve3);
+        earthLine.add(line)
+      }
+
+      allGroup.add(earthLine);
+
+      earthLine.visible = params.showEarthLine
+    }
+
+    /**
+     * 添加粒子特效: 竖型柱子上 扩散的粒子效果
+     */
+    function addParticleEffect() {
+      const geo = new THREE.Geometry();
+      // Line3Group.forEach(line3Curve3 => geo.vertices.push(...line3Curve3.getPoints( 200 ))) //需要设置一些数据
+      // line3Curve3 ==> addLine 函数中添加的数据
+      Line3Group.forEach(line3Curve3 => {
+        line3Curve3.getPoints(200).forEach(v => {
+          v.velocityY = 0.1 + Math.random() / 5; // speed
+          v.velocityX = (Math.random() - 0.5) / 3;
+          v.velocityZ = (Math.random() - 0.5) / 3;
+          v.ox = v.x; //记录原始
+          v.oy = v.y;
+          v.oz = v.z;
+          geo.vertices.push(v)
+        })
+      });
+
+      particle = new THREE.Points(geo, new THREE.PointsMaterial({
+        color: '#07D46E',
+        size: 1.5,
+        transparent: true, // 透明
+        opacity: 1,
+        // depthTest: false
+      }));
+      particle.geometry.verticesNeedUpdate = true;
+
+      particle.visible = params.showParticle;
+
+      allGroup.add(particle)
+    }
+
+    /**
+     *  粒子动画
+     * */
+
+    function particleAnimate() {
+      setInterval(() => { //10秒循环动画
+        particleCanRun = true;
+        const st2 = setTimeout(() => { //6秒后重置
+          particle.geometry.vertices.forEach(v => {
+            // 计算位置
+            v.y = v.oy;
+            v.x = v.ox;
+            v.z = v.oz
+          });
+          particle.geometry.verticesNeedUpdate = true;
+          particle.material.opacity = 1;
+          clearTimeout(st2)
+        }, 6000)
+      }, 1000 * 10)
+    }
+
+    /**
+     * 飞线
+     */
+    function addBoxFlyLine() {
+      loader.load("images/red_line_1.png", texture => {
+        // 两点之间的动线
+        // 起始点
+        const v0 = geographicToVector(R + 50, mark.marking[0].pos[0], mark.marking[0].pos[1]);
+        mark.marking.forEach((elem, i) => {
+          if (i === 0) return;
+          const v3 = geographicToVector(R + 50, elem.pos[0], elem.pos[1]);
+          const res = getSphereHeightPoints(v0, v3, 20, 120); // 20 和 120 为调控角度 一般 R约大 20越大 越小20越小。
+          const curve = new THREE.CubicBezierCurve3(v0, res[0], res[1], v3);
+          const geo = new THREE.Geometry();
+          console.log(curve.getPoints(50));
+          // let allPoints = curve.getPoints(50);
+          // for (let point in allPoints) {
+          //   let v = new THREE.Vector3();
+          //   v.set(point.x, point.y, point.z);
+          //   geo.vertices.push(v)
+          // }
+          geo.vertices = curve.getPoints(50);
+          const meshLine = new MeshLine();
+          meshLine.setGeometry(geo);
+          const line = new THREE.Mesh(meshLine.geometry, new MeshLineMaterial({
+            color: '#F1F0F0',
+            map: texture,
+            useMap: true,
+            lineWidth: 7,
+            resolution: resolution,
+            dashArray: 0.8,  // 破折号之间的长度和间距。(0 -无破折号)
+            dashRatio: 0.3, // 定义可见和不可见之间的比率(0 -更可见，1 -更不可见)。
+            dashOffset: 0,
+            // depthTest:false,
+            transparent: true,
+            sizeAttenuation: 1, //使线宽不变，不管距离(1个单位是屏幕上的1px)(0 -衰减，1 -不衰减)
+            side: THREE.DoubleSide,
+            blending: THREE.AdditiveBlending,
+            near: camera.near,
+            far: camera.far,
+          }));
+          flyLines.push(line);
+          flyLinesGroup.add(line)
+        });
+        flyLinesGroup.visible = params.showFlyLine;
+        allGroup.add(flyLinesGroup)
+      })
+    }
+
+    /**
+     *  添加光柱和底座
+     */
+    function addLightPillars() {
+
+      const D_VALUE = 1, // 差值
+        HEXAGON_RADIUS = 5, // 底座的半径
+        hexagon = new THREE.Object3D(),
+        coneImg = 'images/lightray.png',
+        hexagonColor = ["#32f1b8", "#5df4f3", "#C3F433", "#f43521"];
+
+      const countries = mark.marking;
+
+      const texture = new THREE.TextureLoader().load(coneImg);
+      // 添加光柱和底座
+      for (let i = 0, length = countries.length; i < length; i++) {
+        const position = geographicToVector(R + 50, countries[i].pos[0], countries[i].pos[1])
+        const index = Math.floor(Math.random() * 4);
+        addPedestal(position, index); // 地标
+        addLightCross(position, index, texture) // 光锥
+      }
+
+      scene.add(lightCross);
+
+      //添加底座
+      function addPedestal(position, index) {
+        const color = hexagonColor[index];
+        // 生成六边形
+        const hexagonLine = new THREE.CircleGeometry(HEXAGON_RADIUS, 6);
+        const hexagonPlane = new THREE.CircleGeometry(HEXAGON_RADIUS - D_VALUE, 6);
+        const vertices = hexagonLine.vertices;
+        vertices.shift(); // 第一个节点是中心点
+        const circleLineGeom = new THREE.Geometry();
+        circleLineGeom.vertices = vertices;
+        const circleLine = new THREE.LineLoop(circleLineGeom, new THREE.MeshBasicMaterial({
+          color: color,
+          side: THREE.DoubleSide,
+          depthTest: true
+        }));
+        const circlePlane = new THREE.Mesh(hexagonPlane, new THREE.MeshBasicMaterial({
+          color: color,
+          side: THREE.DoubleSide,
+          opacity: 0.5,
+          depthTest: true
+        }));
+        circleLine.position.copy(position);
+        circlePlane.position.copy(position);
+        // 设置朝向圆点
+        circlePlane.lookAt(new THREE.Vector3(0, 0, 0));
+        circleLine.lookAt(new THREE.Vector3(0, 0, 0));
+
+        hexagon.add(circleLine);
+        hexagon.add(circlePlane);
+        scene.add(hexagon)
+      }
+
+      //添加光柱
+      function addLightCross(position, index, texture) {
+        let // height = Math.random() * 100,
+          height = 80,
+          geometry = new THREE.PlaneGeometry(HEXAGON_RADIUS * 2, height),
+          matrix1 = new THREE.Matrix4;
+        const plane1 = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({
+          map: texture,
+          color: hexagonColor[index],
+          transparent: true,
+          depthTest: true,
+          opacity: 1,
+          side: THREE.DoubleSide,
+          //blending: THREE.AdditiveBlending
+        }));
+        matrix1.makeRotationX(Math.PI / 2);
+        matrix1.setPosition(new THREE.Vector3(0, 0, height / -2));
+        geometry.applyMatrix(matrix1);
+        let plane2 = plane1.clone();
+        plane2.rotation.z = Math.PI / 2;
+        plane1.add(plane2);
+        plane1.position.copy(position);
+        plane1.lookAt(0, 0, 0);
+        lightCross.add(plane1)
+      }
+    }
+
 
     function createEarthParticles() {
       // 必须先创建一个节点, 作为canvas的画板, 绘制点
@@ -747,6 +1032,27 @@
         earthCopy.rotateY(0.005)
       }
 
+      //飞线动画
+      flyLines.forEach(line => line.material.uniforms.dashOffset.value -= 0.01)
+
+      // 粒子动画
+      if (particleCanRun) {
+        // console.log(particle);
+        particle.geometry.vertices.forEach(v => {
+          // 计算位置
+          v.y = v.y - (v.velocityY);
+          v.x = v.x - (v.velocityX);
+          v.z = v.z - (v.velocityZ);
+
+          // 边界检查
+          if (v.y <= -range / 2) v.y = range / 2;
+          if (v.x <= -range / 2 || v.x >= range / 2) v.x = v.x * -1;
+          if (v.z <= -range / 2 || v.z >= range / 2) v.velocityZ = v.velocityZ * -1;
+        });
+        particle.geometry.verticesNeedUpdate = true;
+        particle.material.opacity = particle.material.opacity - 0.005
+      }
+
 
       //  添加外部球体上点与点之间的线条
       if (particlesData && particlesData.length > 1) layerAnimate();
@@ -762,17 +1068,16 @@
         // 更新材质
         material.needsUpdate = true
       })
-
     }
 
     function onWindowResize() {
       var width = window.innerWidth;
       var height = window.innerHeight;
 
-      // camera.aspect = width / height;
+      camera.aspect = width / height;
       renderer.setSize(width, height);
       camera.updateProjectionMatrix();
-      camera.position.set(450, 450, 450);
+      // camera.position.set(450, 450, 450);
       render();
     }
 
@@ -784,7 +1089,7 @@
       raycaster.setFromCamera(mouse, camera);
       // console.log(group.children)
       let intersects = raycaster.intersectObjects(group.children);
-      console.log(intersects);
+      // console.log(intersects);
       if (intersects.length > 0) {
         let object = intersects[0].object;
         object.layers.toggle(BLOOM_SCENE);
@@ -793,7 +1098,6 @@
     }
 
     function render() {
-      //
       renderer.render(scene, camera);
     }
   </script>
@@ -802,4 +1106,6 @@
   <canvas id="example"></canvas>
 </div>
 </body>
+<script src="../build/three.min.js"></script>
+<script src="../static/jsm/THREE.MeshLine.js"></script>
 </html>
