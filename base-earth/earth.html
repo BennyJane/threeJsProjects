@@ -56,8 +56,10 @@
       baseLightBar,
       lightBarParticlesTexture
     } from "../lib/lightBar.js";
-    import {geographicToVector, getSphereHeightPoints,
-      addCircle, moonLine, addTexturePoints} from "./earthLib.js";
+    import {
+      geographicToVector, getSphereHeightPoints,
+      addCircle, moonLine, addTexturePoints
+    } from "./earthLib.js";
 
     var camera, scene, renderer, geometry, secondScene;
     var controls;
@@ -87,6 +89,7 @@
     var R = 200; // 地球半径
     var outGap = 30; // 内外球体之间的距离
     let moonGroup = new THREE.Group();
+    let pointsOfMoonline = [];
     var range = 1000; //粒子运动边界
     let circleNum = 0; // 球体表面圆形的数量
     var COUNT = 300; // 遮罩层 单位数量
@@ -391,11 +394,10 @@
         .getElementById("glFullscreen")
         .appendChild(renderer.domElement); //将画布渲染器绑定到新增的dom节点上；
 
-      secondScene = new THREE.Scene();
       scene = new THREE.Scene();
       // scene.add(new THREE.GridHelper(10, 50))
       // fixme 添加雾化效果,
-      scene.fog = new THREE.Fog('#000000', 500, 1200);
+      scene.fog = new THREE.Fog('#000000', 550, 900);
 
       camera = new THREE.PerspectiveCamera(
         45,
@@ -411,7 +413,7 @@
       controls = baseControls(camera, renderer.domElement);
       controls.addEventListener("change", render);
       controls.minDistance = 550;
-      controls.maxDistance = 900;
+      controls.maxDistance = 550;
       controls.enabled = true;
       controls.autoRotateSpeed = 1;  // 自转速度
 
@@ -428,9 +430,9 @@
         earth = new THREE.Mesh(new THREE.SphereBufferGeometry(R, 50, 50), new THREE.MeshPhongMaterial({
           transparent: true,
           depthTest: false,
-          opacity: 0.8,
+          opacity: 1.0,
           shininess: 80,
-          specular: '#57FCF6',
+          specular: '#00FFA7',
           shadowSide: THREE.DoubleSide,
           // side: THREE.DoubleSide,
           // renderOrder: 0,
@@ -865,7 +867,7 @@
         HEXAGON_RADIUS = 5, // 底座的半径
         hexagon = new THREE.Object3D(),
         coneImg = 'images/lightray.png',
-        hexagonColor = ["#32f1b8", "#5df4f3", "#C3F433", "#f43521"];
+        hexagonColor = ["#FFF350", "#FFF350", "#FFFFFF", "#FFFFFF"];
 
       const countries = mark.marking;
 
@@ -1072,8 +1074,9 @@
       let rList = [250, 265, 268, 273];
       for (let i in rList) {
         let edg = Math.PI * i / 4;
-        let circle = moonLine(rList[i], edg)
-        moonGroup.add(circle)
+        let result = moonLine(rList[i], edg);
+        pointsOfMoonline.push(result[1])
+        moonGroup.add(result[0])
       }
       scene.add(moonGroup)
     }
@@ -1096,6 +1099,30 @@
 
       if (moonGroup) {
         moonGroup.rotateY(0.002)
+        let moonLines = moonGroup.children;
+        // console.log(moonLines)
+        // console.log(pointsOfMoonline)
+        for (let index in pointsOfMoonline) {
+          let Points = pointsOfMoonline[index];
+          let minDist = 8000;
+          for (let i = 0; i < (Points.length) / 3; i++) {
+            let x = Points[i], y = Points[i+1], z = Points[i+2];
+            // console.log('p', p)
+            let dist = Math.sqrt((x - 450) * (x - 450) + (y - 450) * (y - 450) + (z - 450) * (z - 450));
+            // console.log(dist)
+            if (dist < minDist) {
+              minDist = dist
+            }
+          }
+          // console.log(minDist)
+          let opa = 1.0;
+          if (minDist < 800) {
+            opa = (minDist - 250) / 800
+          }
+          console.log(index, opa)
+          moonLines[index].material.opacity = opa
+        }
+        // moonLines.forEach(line => line.material.opacity -=0.02)
       }
 
       //飞线动画

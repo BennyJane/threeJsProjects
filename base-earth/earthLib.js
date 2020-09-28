@@ -71,7 +71,7 @@ let moonLine = function (R, edg) {
   line.rotateX(Math.random() * edg);
   line.rotateZ(Math.random() * edg);
   // moonItem(points, pointNum);
-  return line
+  return [line, points]
 };
 
 // let moonItem = function (arcPoints, num = 100) {
@@ -106,7 +106,7 @@ let addTexturePoints = function (R) {
   let earthParticles = new THREE.Object3D();
   // 必须先创建一个节点, 作为canvas的画板, 绘制点
   const earthImg = document.createElement('img');
-  earthImg.src = 'images/earthSpec.png';
+  earthImg.src = 'images/blackWhiteMap.png';
   // 图片加载后,再绘制图片
   earthImg.onload = () => {
     let earthCanvas = document.createElement('canvas'),
@@ -213,6 +213,10 @@ let addTexturePoints = function (R) {
     }
   };
   return earthParticles
+}
+
+let computeDis = function () {
+
 }
 
 export {geographicToVector, getSphereHeightPoints, addCircle, moonLine, addTexturePoints}
