@@ -1,19 +1,19 @@
 import * as THREE from '../build/three.module.js'
 
-let geographicToVector = (radius, lng, lat) => new THREE.Vector3().setFromSpherical(new THREE.Spherical(radius, (90 - lat) * (Math.PI / 180), (90 + lng) * (Math.PI / 180)))
+let geographicToVector = (radius, lng, lat) => new THREE.Vector3().setFromSpherical(new THREE.Spherical(radius, (90 - lat) * (Math.PI / 180), (90 + lng) * (Math.PI / 180)));
 
 let getSphereHeightPoints = (v0, v3, n1, n2, p0) => {
   // 夹角
-  const angle = (v0.angleTo(v3) * 180) / Math.PI / 10 // 0 ~ Math.PI
-  const aLen = angle * (n1 || 10)
-  const hLen = angle * angle * (n2 || 120)
-  p0 = p0 || new THREE.Vector3(0, 0, 0) // 默认以 坐标原点为参考对象
+  const angle = (v0.angleTo(v3) * 180) / Math.PI / 10; // 0 ~ Math.PI
+  const aLen = angle * (n1 || 10);
+  const hLen = angle * angle * (n2 || 120);
+  p0 = p0 || new THREE.Vector3(0, 0, 0); // 默认以 坐标原点为参考对象
   // 法线向量
-  const rayLine = new THREE.Ray(p0, v0.clone().add(v3.clone()).divideScalar(2))
+  const rayLine = new THREE.Ray(p0, v0.clone().add(v3.clone()).divideScalar(2));
   // 顶点坐标
-  const vtop = rayLine.at(hLen / rayLine.at(1).distanceTo(p0))
+  const vtop = rayLine.at(hLen / rayLine.at(1).distanceTo(p0));
   // 计算制高点
-  const getLenVector = (v1, v2, len) => v1.lerp(v2, len / v1.distanceTo(v2))
+  const getLenVector = (v1, v2, len) => v1.lerp(v2, len / v1.distanceTo(v2));
   // 控制点坐标
   return [getLenVector(v0.clone(), vtop, aLen), getLenVector(v3.clone(), vtop, aLen)]
 };
@@ -46,7 +46,7 @@ let setCircle = function (divisions = 100, raduis = 100) {
     vertices.push(x, 0, z);
   }
   return vertices
-}
+};
 
 
 // 绘制轨道卫星线条
@@ -71,7 +71,7 @@ let moonLine = function (R, edg) {
   line.rotateX(Math.random() * edg);
   line.rotateZ(Math.random() * edg);
   // moonItem(points, pointNum);
-  return [line, points]
+  return line
 };
 
 // let moonItem = function (arcPoints, num = 100) {
@@ -130,13 +130,13 @@ let addTexturePoints = function (R) {
         sizes: []
       };
       const mat = new THREE.PointsMaterial({
-        size: 10,  // 设置圈的尺寸
-        color: new THREE.Color('#009A65'),  // 区域点颜色 0x03d98e
+        size: 8,  // 设置圈的尺寸
+        color: new THREE.Color('#5BE5A0'),  // 区域点颜色 0x03d98e
         map: new THREE.TextureLoader().load("images/dot.png"),
         depthWrite: false,
         depthTest: false,
         transparent: true,
-        opacity: 0.2,  // 透明度为0 , 默认不显示
+        opacity: 0.15,  // 透明度为0 , 默认不显示
         side: THREE.FrontSide,
         blending: THREE.AdditiveBlending
       });
@@ -213,10 +213,39 @@ let addTexturePoints = function (R) {
     }
   };
   return earthParticles
+};
+
+let computeDis = function (lineGeo) {
+  let positions = lineGeo.geometry.attributes.position.array;
+  let minDist = 8000;
+  let centerPoint = 300;
+  for (let i = 0; i < 61; i++) {
+    let x = positions[i * 3];
+    let y = positions[i * 3 + 1];
+    let z = positions[i * 3 + 2];
+    let dist = Math.sqrt((x - centerPoint) * (x - centerPoint) + (y - centerPoint) * (y - centerPoint) + (z - centerPoint) * (z - centerPoint));
+    // console.log(dist)
+    if (dist < minDist) {
+      minDist = dist
+    }
+  }
+
+  let opa = 1.0;
+  if (minDist < 386) {
+    opa = (minDist - 250) / 386
+  }
+  console.log(minDist, opa);
+  return opa
+};
+
+
+let skyTexture = function (scene) {
+  const texture = new THREE.TextureLoader().load('images/backgroupImg.png')
+  scene.background = texture;
 }
 
-let computeDis = function () {
 
+export {
+  geographicToVector, getSphereHeightPoints,
+  addCircle, moonLine, addTexturePoints, computeDis, skyTexture
 }
-
-export {geographicToVector, getSphereHeightPoints, addCircle, moonLine, addTexturePoints}

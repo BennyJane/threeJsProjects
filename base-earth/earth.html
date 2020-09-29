@@ -58,7 +58,7 @@
     } from "../lib/lightBar.js";
     import {
       geographicToVector, getSphereHeightPoints,
-      addCircle, moonLine, addTexturePoints
+      addCircle, moonLine, addTexturePoints, computeDis, skyTexture
     } from "./earthLib.js";
 
     var camera, scene, renderer, geometry, secondScene;
@@ -318,7 +318,16 @@
         {
           name: "英国首都-伦敦",
           pos: [0.5, 51.3]
+        },
+        {
+          name: "英国首都-伦敦",
+          pos: [10, 35.3]
+        },
+        {
+          name: "英国首都-伦敦",
+          pos: [30, 43.3]
         }
+
       ]
     };
     var flyLines = [];
@@ -362,10 +371,11 @@
     init();
     loadFile(function () {
       camera.position.set(450, 450, 450);
+      skyTexture(scene);
       // loadLayer();
       addLight();
       addOutPointCloud();
-      addLine();
+      // addLine();
       // addParticleEffect();  // 线的例子扩散效果
       //粒子扩散动画 ==> 循环展示
       // particleAnimate();
@@ -633,15 +643,15 @@
 
     function addLight() {
       // 环境光越弱, 光柱的效果越明显
-      const ambientLight = new THREE.AmbientLight('rgb(255,255,255)', 1);
+      const ambientLight = new THREE.AmbientLight('#009A65', 1);
       scene.add(ambientLight);
 
       // 添加平行光  ==> 不显示
-      const directionalLight = new THREE.DirectionalLight('#57FCF6', 10);
+      const directionalLight = new THREE.DirectionalLight('#009A65', 30);
       directionalLight.position.set(R * 4, R * 4, R * 4);
       scene.add(directionalLight);
       // 点光源 ==> 不显示
-      const pointLight = new THREE.PointLight("#57FCF6", 10);
+      const pointLight = new THREE.PointLight("#009A65", 10);
       pointLight.position.set(R * 4, R * 4, R * 4);
       scene.add(pointLight);
 
@@ -875,7 +885,7 @@
       // 添加光柱和底座
       for (let i = 0, length = countries.length; i < length; i++) {
         // 修改柱子与台子的位置
-        let position = geographicToVector(R + 2, countries[i].pos[0], countries[i].pos[1])
+        let position = geographicToVector(R + 1, countries[i].pos[0], countries[i].pos[1])
         const index = Math.floor(Math.random() * 4);
         addPedestal(position, index); // 地标
         addLightCross(position, index, texture) // 光锥
@@ -970,8 +980,8 @@
             sizes: []
           };
           const mat = new THREE.PointsMaterial({
-            size: 6,  // 设置圈的尺寸
-            color: new THREE.Color('#009A65'),  // 区域点颜色 0x03d98e
+            size: 4,  // 设置圈的尺寸
+            color: new THREE.Color('#00FF6F'),  // 区域点颜色 0x03d98e ,
             map: new THREE.TextureLoader().load("images/dot.png"),
             depthWrite: false,
             depthTest: false,
@@ -1074,9 +1084,8 @@
       let rList = [250, 265, 268, 273];
       for (let i in rList) {
         let edg = Math.PI * i / 4;
-        let result = moonLine(rList[i], edg);
-        pointsOfMoonline.push(result[1])
-        moonGroup.add(result[0])
+        let l = moonLine(rList[i], edg);
+        moonGroup.add(l)
       }
       scene.add(moonGroup)
     }
@@ -1100,29 +1109,15 @@
       if (moonGroup) {
         moonGroup.rotateY(0.002)
         let moonLines = moonGroup.children;
-        // console.log(moonLines)
-        // console.log(pointsOfMoonline)
-        for (let index in pointsOfMoonline) {
-          let Points = pointsOfMoonline[index];
-          let minDist = 8000;
-          for (let i = 0; i < (Points.length) / 3; i++) {
-            let x = Points[i], y = Points[i+1], z = Points[i+2];
-            // console.log('p', p)
-            let dist = Math.sqrt((x - 450) * (x - 450) + (y - 450) * (y - 450) + (z - 450) * (z - 450));
-            // console.log(dist)
-            if (dist < minDist) {
-              minDist = dist
-            }
-          }
-          // console.log(minDist)
-          let opa = 1.0;
-          if (minDist < 800) {
-            opa = (minDist - 250) / 800
-          }
-          console.log(index, opa)
-          moonLines[index].material.opacity = opa
-        }
-        // moonLines.forEach(line => line.material.opacity -=0.02)
+        let index = 1
+        console.log(moonLines[index])
+        let opa = computeDis(moonLines[index]);
+        moonLines[index].material.opacity = opa;
+        // for (let index in moonLines) {
+        //   let index = 0
+        //   let opa = computeDis(moonLines[index]);
+        //   moonLines[index].material.opacity = opa;
+        // }
       }
 
       //飞线动画
