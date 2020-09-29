@@ -176,7 +176,7 @@
         let halfWidth = window.innerWidth / 2;
         let halfHeight = window.innerHeight / 2;
         let vector = object.position.clone().project(camera);
-        labelDom.innerText = 'name: ' + object.name;
+        labelDom.innerHTML = 'name: ' + object.name;
         let leftDist = vector.x * halfWidth + halfWidth;
         let topDist = vector.y * halfHeight + halfHeight - 10;
         labelDom.setAttribute('style', 'left: ' + leftDist + 'px; top : ' + topDist + 'px;')
@@ -216,6 +216,8 @@
 <div id="glFullscreen">
   <canvas id="example"></canvas>
 </div>
-<div id="label"></div>
+<div id="label">
+</div>
+
 </body>
 </html>
