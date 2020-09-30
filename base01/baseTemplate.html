@@ -1,144 +1,56 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Title</title>
-    <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
-    <link type="text/css" rel="stylesheet" href="../main.css">
-    <style>
-        #glFullscreen {
-            width: 100%;
-            height: 100vh;
-            min-width: 640px;
-            min-height: 360px;
-            position: relative;
-            overflow: hidden;
-            z-index: 0;
-        }
+  <meta charset="UTF-8">
+  <title>Title</title>
+  <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+  <link type="text/css" rel="stylesheet" href="../main.css">
+  <style>
+    #glFullscreen {
+      width: 100%;
+      height: 100vh;
+      min-width: 640px;
+      min-height: 360px;
+      position: relative;
+      overflow: hidden;
+      z-index: 0;
+    }
 
-        #example {
-            width: 100%;
-            height: 100%;
-            top: 0;
-            left: 0;
-            background-color: #000000;
-        }
+    #example {
+      width: 100%;
+      height: 100%;
+      top: 0;
+      left: 0;
+      background-color: #000000;
+    }
 
-        #feedback {
-            color: darkorange;
-        }
-
-        #dat {
-            user-select: none;
-            position: absolute;
-            left: 0;
-            top: 0;
-            z-Index: 200;
-        }
-    </style>
+    #feedback {
+      color: darkorange;
+    }
+  </style>
 </head>
-<body onload="draw();">
-<div id="glFullscreen">
-    <canvas id="example"></canvas>
-</div>
+<body>
 <div id="info">
-    <a href="https://threejs.org" target="_blank" rel="noopener"> three.js</a>
-    <div id="feedback"></div>
-    <script type="module">
-        'use strict';
-        import * as THREE from '../build/three.module.js'
+  <a href="https://threejs.org" target="_blank" rel="noopener"> three.js</a>
+  <div id="feedback"></div>
+  <script type="module">
+    'use strict';
+    import * as THREE from '../build/three.module.js'
+    import {EffectComposer} from "../static/jsm/postprocessing/EffectComposer.js";
+    import {RenderPass} from "../static/jsm/postprocessing/RenderPass.js";
+    import {ShaderPass} from "../static/jsm/postprocessing/ShaderPass.js";
+    import {UnrealBloomPass} from "../static/jsm/postprocessing/UnrealBloomPass.js";
+    // 自定义的函数
+    import {convertColor, randomColor, baseControls, basePlane} from "../lib/base.js";
+    import {baseLightBar, lightBarParticlesTexture} from "../lib/lightBar.js";
 
-        import {TrackballControls} from "../static/jsm/controls/TrackballControls.js";
-
-        import {MTLLoader} from "../static/jsm/loaders/MTLLoader.js";
-        import {OBJLoader2} from "../static/jsm/loaders/OBJLoader2.js";
-        import {MtlObjBridge} from "../static/jsm/loaders/obj2/bridge/MtlObjBridge.js";
-
-        let renderer;
-
-        function initRenderer() {
-            renderer = new THREE.WebGL1Renderer();
-            renderer.setSize(window.innerWidth, window.innerHeight); // 设置Canvas画布大小
-            document.body.appendChild(renderer.domElement);  // 将画布渲染器绑定到新增的dom节点
-        }
-
-        let camera;
-
-        function initCamera() {
-            camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 1, 2000);
-            camera.position.set(0, 0, 400);
-        }
-
-        let scene;
-
-        function initScene() {
-            scene = new THREE.Scene();
-            let helper = new THREE.AxesHelper(900)  //
-            scene.add(helper)
-        }
-
-        let light;
-
-        function initLight() {
-            scene.add(new THREE.AmbientLight(0xffffff)); //
-            light = new THREE.DirectionalLight(0xffffff); //
-            light.position.set(-50, 20, -50);
-            scene.add(light)
-        }
-
-        function initModel() {
-            let material = new THREE.MeshLambertMaterial({
-                color: 0xff0000,
-                wireframe: true
-            });
-            // width, height, depth, widthSegments, heightSegments, depthSegments
-            let cube = new THREE.Mesh(new THREE.BoxGeometry(100, 100, 100, 1, 1, 1), material);
-            scene.add(cube)
-        }
-
-        let control;
-
-        function initControls() {
-            control = new TrackballControls(camera, renderer.domElement); //
-            control.enabled = true; //
-            control.autoRotate = true; //
-            control.enableDamping = true; //
-        }
-
-        // fixme 更新控制器
-        function animate() {
-            control.update();
-            render();
-            requestAnimationFrame(animate)
-        }
-
-        // 定义渲染触发器
-        function render() {
-            renderer.render(scene, camera)
-        }
-
-        // 窗口触发的函数
-        function onWindowResize() {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            render();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-        }
-
-        function draw() {
-            initRenderer();
-            initScene();
-            initCamera();
-            initModel();
-            initLight();
-            initControls();
-
-            animate();
-            window.onresize = onWindowResize;
-        }
+    var camera, scene, renderer, boxMaterial, finalMesh, group, geometry;
 
 
-    </script>
+  </script>
+</div>
+<div id="glFullscreen">
+  <canvas id="example"></canvas>
 </div>
 </body>
 </html>
