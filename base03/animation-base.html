@@ -147,6 +147,7 @@
       let clip = new THREE.AnimationClip('move', 10, [positionKF, lookKF]);
       cameraMixer = new THREE.AnimationMixer(camera);
       let actionCamera = cameraMixer.clipAction(clip);
+      actionCamera.Animation.setLoop(new THREE.LoopOnce)
       actionCamera.play()
     }
 
