@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>朵朵视野-Three.js通过canvas实现球体世界平面地图</title>
+    <link href="./css/index.css" rel="stylesheet" />
+    <script type="text/javascript" src="./js/jquery.min.js"></script>
+    <script type="text/javascript" src="./js/three.min.js"></script>
+    <script type="text/javascript" src="./js/THREE.MeshLine.js"></script>
+    <script type="text/javascript" src="./js/OrbitControls.js"></script>
+  </head>
+  <body>
+    <div id="three-frame"></div>
+  </body>
+  <script>
+    // 渲染器
+    var renderer = null;
+    // 相机
+    var camera = null;
+    // 场景
+    var scene = null;
+    // 包裹画布dom
+    var dom = document.getElementById("three-frame");
+    // 地球对象
+    var earthBall = null;
+    // 地球大小
+    var earthBallSize = 30;
+    // three中lineGeometry对象数组
+    var lineGeometryObj = {};
+    // 世界经纬度对象
+    var worldGeometry = {};
+    // 地图颜色 海水
+    var earthBallColor = "#000000";
+    // 地图大陆区块颜色
+    var earthBallPlaneColor = "#fff";
+    // 地图线条颜色
+    var worldLineColor = "#309FE9";
+    // 地图线条宽度
+    var worldLineWidth = 0.2;
+    // 获取世界经纬度信息函数
+    var getWorldGeometry = function() {
+      $.ajax({
+        type: "GET", //提交方式
+        url: "./code/world.json",
+        async: false,
+        success: function(response) {
+          //返回数据根据结果进行相应的处理
+          worldGeometry = [];
+          // 绘制世界地图
+          response.features.forEach(function(worldItem, worldItemIndex) {
+            // 判断区域是否是有分离
+            var length = worldItem.geometry.coordinates.length;
+            var multipleBool = length > 1 ? true : false;
+            worldItem.geometry.coordinates.forEach(function(
+              worldChildItem,
+              worldChildItemIndex
+            ) {
+              if (multipleBool) {
+                // 值界可以使用的经纬度信息
+                if (worldChildItem.length && worldChildItem[0].length == 2) {
+                  worldGeometry.push(worldChildItem);
+                }
+                // 需要转换才可以使用的经纬度信息
+                if (worldChildItem.length && worldChildItem[0].length > 2) {
+                  worldChildItem.forEach(function(
+                    countryItem,
+                    countryItenIndex
+                  ) {
+                    worldGeometry.push(countryItem);
+                  });
+                }
+              } else {
+                var countryPos = null;
+                if (worldChildItem.length > 1) {
+                  countryPos = worldChildItem;
+                } else {
+                  countryPos = worldChildItem[0];
+                }
+                if (countryPos) {
+                  worldGeometry.push(countryPos);
+                }
+              }
+            });
+          });
+        }
+      });
+    };
+    // 经纬度转换函数
+    var getPosition = function(longitude, latitude, radius) {
+      var lg = THREE.Math.degToRad(longitude);
+      var lt = THREE.Math.degToRad(latitude);
+      var temp = radius * Math.cos(lt);
+      var x = temp * Math.sin(lg);
+      var y = radius * Math.sin(lt);
+      var z = temp * Math.cos(lg);
+      return {
+        x: x,
+        y: y,
+        z: z
+      };
+    };
+    // 绘制世界地图线条函数
+    var drawWorldLine = function(pos, identify) {
+      var posArray = [];
+      pos.forEach(function(item) {
+        var pointPosition = getPosition(item[0] + 90, item[1], earthBallSize);
+        posArray.push(
+          new THREE.Vector3(pointPosition.x, pointPosition.y, pointPosition.z)
+        );
+      });
+      // 绘制的线条需要关闭，第二个参数默认为false，表示不关闭
+      var curve = new THREE.CatmullRomCurve3(posArray, true);
+      var points = curve.getPoints(500);
+      var geometry = new THREE.Geometry().setFromPoints(points);
+      // 定义线条
+      var line = new MeshLine();
+      line.setGeometry(geometry);
+      // 定义线条材质
+      var material = new MeshLineMaterial({
+        color: worldLineColor,
+        lineWidth: worldLineWidth
+      });
+      // 绘制地图
+      lineGeometryObj["lineGeometry" + identify] = new THREE.Mesh(
+        line.geometry,
+        material
+      );
+      console.log(lineGeometryObj)
+      // 将地图加入场景
+      scene.add(lineGeometryObj["lineGeometry" + identify]);
+    };
+    // 计算绘制地图参数函数
+    var drawWorldLineFun = function() {
+      // 绘制世界地图
+      worldGeometry.forEach(function(item, index) {
+        drawWorldLine(item, index);
+      });
+    };
+    // canvas画地图函数，因为性能问题，线条不再canvas中实现
+    var createCanvas = function(w, h, worldPos) {
+      var canvas = document.createElement("canvas");
+      canvas.width = w;
+      canvas.height = h;
+      var context = canvas.getContext("2d");
+      var centerX = w / 2;
+      var centerY = h / 2;
+      var average = w / 360;
+      // 绘制背景颜色
+      context.fillStyle = earthBallColor;
+      context.fillRect(0, 0, w, h);
+      // canvas中绘制地图方法
+      function canvasLineFun(childrenPosition) {
+        context.fillStyle = earthBallPlaneColor;
+        context.moveTo(
+          centerX + childrenPosition[0][0] * average,
+          centerY - childrenPosition[0][1] * average
+        );
+        childrenPosition.forEach(function(posItem) {
+          context.lineTo(
+            centerX + posItem[0] * average,
+            centerY - posItem[1] * average
+          );
+        });
+        context.closePath();
+        context.fill();
+      }
+      worldPos.forEach(function(item) {
+        canvasLineFun(item);
+      });
+      return canvas;
+    };
+    // 执行函数
+    var render = function() {
+      scene.rotation.y -= 0.002;
+      renderer.render(scene, camera);
+      orbitcontrols.update();
+      requestAnimationFrame(render);
+    };
+    // 初始化函数
+    var initThree = function() {
+      // 初始化场景
+      scene = new THREE.Scene();
+      // 初始化相机
+      camera = new THREE.PerspectiveCamera(
+        20,
+        dom.clientWidth / dom.clientHeight,
+        1,
+        100000
+      );
+      // 设置相机位置
+      camera.position.set(0, 0, 200);
+      renderer = new THREE.WebGLRenderer({
+        alpha: true,
+        antialias: true
+      });
+      // 设置窗口尺寸
+      renderer.setSize(dom.clientWidth, dom.clientHeight);
+      // 初始化控制器
+      orbitcontrols = new THREE.OrbitControls(camera, renderer.domElement);
+      dom.appendChild(renderer.domElement);
+      // 设置光线
+      scene.add(new THREE.HemisphereLight("#ffffff", "#ffffff", 1));
+      console.log(worldGeometry);
+      // 创建地球 --> 陆地与海洋区分
+      earthBall = new THREE.Mesh(
+        new THREE.SphereGeometry(earthBallSize, 50, 50),
+        new THREE.MeshBasicMaterial({
+          map: new THREE.CanvasTexture(createCanvas(2048, 1024, worldGeometry)),
+          side: THREE.FrontSide
+        })
+      );
+      scene.add(earthBall);
+      // 绘制地图 --> 国家分界线
+      drawWorldLineFun();
+      // 渲染
+      render();
+    };
+    // 页面资源加载完全执行函数
+    window.onload = function() {
+      getWorldGeometry();
+      initThree();
+    };
+    // 窗口resize事件
+    window.onresize = function() {
+      // 重新初始化尺寸
+      camera.aspect = dom.clientWidth / dom.clientHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(dom.clientWidth, dom.clientHeight);
+    };
+  </script>
+</html>
