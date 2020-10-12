@@ -56,64 +56,6 @@ let moonLine = function (R, edg) {
     "position",
     new THREE.Float32BufferAttribute(points, 3)
   );
-  // 添加视觉中心虚化功能
-  THREE.XRayMaterial = function (options) {
-    let uniforms = {
-      uTex: {
-        type: "t",
-        value: options.map || new THREE.Texture
-      },
-      offsetRepeat: {
-        value: new THREE.Vector4(0, 0, 1, 1)
-      },
-      alphaProportion: {
-        type: "1f",
-        value: options.alphaProportion || .5
-      },
-      diffuse: {
-        value: options.color || new THREE.Color('#00ffa')
-      },
-      opacity: {
-        value: options.opacity || 1
-      },
-      gridOffset: {
-        value: 0
-      }
-    };
-    return new THREE.ShaderMaterial({
-      uniforms: uniforms,
-      vertexShader: ` 
-varying float _alpha;
-varying vec2 vUv;
-uniform vec4 offsetRepeat;
-uniform float alphaProportion;
-void main() {
-gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
-vUv = uv * offsetRepeat.zw + offsetRepeat.xy;
-vec4 worldPosition = modelMatrix * vec4( vec3( position ), 1.0 );
-vec3 cameraToVertex = normalize( cameraPosition - worldPosition.xyz);
-_alpha = 1.0 - max( 0.0, dot( normal, cameraToVertex ) );
-_alpha = max( 0.0, (_alpha - alphaProportion) / (1.0 - alphaProportion) );
-}`,
-      fragmentShader: `
-uniform sampler2D uTex;
-uniform vec3 diffuse;
-uniform float opacity;
-uniform float gridOffset;
-varying float _alpha;
-varying vec2 vUv;
-void main() {
-vec4 texColor = texture2D( uTex, vUv );
-float _a = _alpha * opacity;
-if( _a <= 0.0 ) discard;
-_a = _a * ( sin( vUv.y * 2000.0 + gridOffset ) * .5 + .5 );
-gl_FragColor = vec4( texColor.rgb * diffuse, _a );
-}`,
-      transparent: !0,
-      blending: THREE.AdditiveBlending,
-      depthTest: !1
-    })
-  };
   // 为外部的圆弧添加样式
   let mt = new THREE.LineBasicMaterial({
     color: "#00ffa7",
@@ -122,18 +64,6 @@ gl_FragColor = vec4( texColor.rgb * diffuse, _a );
     linewidth: 1.2,
     opacity: 0.6
   });
-
-  // let map = new THREE.TextureLoader().load('./images/clouds.jpg');
-  // map.wrapT = THREE.ClampToEdgeWrapping;
-  // map.wrapS = THREE.ClampToEdgeWrapping;
-  //
-  // let material = new THREE.XRayMaterial({
-  //   map: map,
-  //   alphaProportion: .25,
-  //   color: new THREE.Color('#00ffa'),
-  //   opacity: 0.5,
-  //   gridOffsetSpeed: .6
-  // });
 
   let line = new THREE.Line(geometryArc, mt);
   line.rotateX(edg);
@@ -339,7 +269,40 @@ gl_FragColor = vec4( texColor.rgb * diffuse, _a );
   scene.add(cloud)
 };
 
+
+let colorIndex = function (r, g, b) {
+  let index = 0
+  let currentColor = 'rgba(' + r + ',' + g + ',' + b + ')';
+  let distractColors = ['rgba(17,255,0)', 'rgba(255,52,38)', 'rgba(39,54,255)', 'rgba(255,255,255)',
+    'rgba(0,154,101)', 'rgba(255,0,204)', 'rgba(255,243,80)'];
+  // console.log('current color', currentColor)
+  if (currentColor === distractColors[0]) {
+    index = 1
+  } else if (currentColor === distractColors[1]) {
+    index = 2
+  } else if (currentColor === distractColors[2]) {
+    index = 3
+  } else if (currentColor === distractColors[3]) {
+    index = 4
+  } else if (currentColor === distractColors[4]) {
+    index = 5
+  } else if (currentColor === distractColors[5]) {
+    index = 6
+  } else if (currentColor === distractColors[6]) {
+    index = 7
+  } else if (currentColor === distractColors[7]) {
+    index = 8
+  } else if (currentColor === distractColors[8]) {
+    index = 9
+  } else {
+    // 非空
+    index = 0
+  }
+  return index
+}
+
+
 export {
   geographicToVector, getSphereHeightPoints,
-  addCircle, moonLine, addTexturePoints, skyTexture, createCloudGrid, cloud
+  addCircle, moonLine, addTexturePoints, skyTexture, createCloudGrid, cloud, colorIndex
 }

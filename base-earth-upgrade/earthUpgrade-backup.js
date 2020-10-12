@@ -10,10 +10,10 @@ import {
   lightBarParticlesTexture
 } from "../lib/lightBar.js";
 import {
-  geographicToVector, getSphereHeightPoints, colorIndex,
+  geographicToVector, getSphereHeightPoints,
   addCircle, moonLine, addTexturePoints, skyTexture, createCloudGrid, cloud
 } from "./earthLib.js";
-import {mark, positionList, distractColors} from "./data.js";
+import {mark, positionList} from "./data.js";
 
 var camera, scene, renderer, geometry, secondScene;
 var controls;
@@ -62,7 +62,6 @@ var earth,
   pointCloud,
   particlePositions,
   linesMesh;
-let hexagon = new THREE.Object3D(); // 光柱
 var earthLine = new THREE.Group();
 var allGroup = new THREE.Group();
 var lightCross = new THREE.Group();
@@ -78,22 +77,17 @@ let resolution = new THREE.Vector2(
 var lightBarList = baseLightBar(3, 10, "#51ff3e");
 var clock = new THREE.Clock();
 
-// viewStatus
-let isChinaView = false;
-
 // 添加点击交互事件
 let raycaster = new THREE.Raycaster();
 let mouse = new THREE.Vector2();
 let selectObject = undefined;
 let cityPlanes = [];
 let cameraMixer;
-let cameraDiv = 2;
+let cameraDiv = 1.8;
 let moveEnd = false;
 let rotateStop = false;
 let controlsMixer;
 // 添加标记,确保当窗口已经放大完毕后,再渲染更新文本
-let mouseOverObject = undefined;
-let mouseOverColor;
 
 
 init();
@@ -167,15 +161,13 @@ function init() {
   window.addEventListener("resize", onWindowResize, false);
 // window.addEventListener("click", onDocumentMouseClick, false)
   window.addEventListener('click', onMouseClick, false);
-  window.addEventListener('mousemove', onMouseOver, false);
 }
 
 // ========================================== 添加物体 ========================================
 // ================== add earth
 function loadFile(callback) {
-// earth_line2 worldAndChind worldMap  ChinaInner
-  let textureImg = "images/havingChinaLine.png";
-  loader.load(textureImg, textureNormal => {
+// earth_line2 worldAndChind worldMap
+  loader.load("images/worldAndChind.png", textureNormal => {
     earth = new THREE.Mesh(new THREE.SphereBufferGeometry(R, 50, 50), new THREE.MeshPhongMaterial({
       transparent: true,
       depthTest: false,
@@ -188,12 +180,21 @@ function loadFile(callback) {
       // receiveShadow: false,
       castShadow: false,
       map: textureNormal,
-      needsUpdate: true
+    }));
+    // fixme 外部球体遮挡了光柱子
+    earthCopy = new THREE.Mesh(new THREE.SphereBufferGeometry(R + outGap, 50, 50), new THREE.MeshPhongMaterial({
+      transparent: true,
+      depthTest: false,  // 关闭遮挡效果
+      opacity: 0.3,
+      shadowSide: THREE.BackSide,
+      map: textureNormal
     }));
 
+    // allGroup.add(earth, earthCopy);
     allGroup.add(earth);
+    // secondScene.add(earthCopy);
     earth.receiveShadow = true;
-    // earthCopy.visible = params.showEarthCopy;
+    earthCopy.visible = params.showEarthCopy;
     callback()
   })
 }
@@ -494,7 +495,7 @@ function addLightPillars() {
 
   const D_VALUE = 1, // 差值
     HEXAGON_RADIUS = 5, // 底座的半径
-    // hexagon = new THREE.Object3D(),
+    hexagon = new THREE.Object3D(),
     coneImg = 'images/lightray.png',
     hexagonColor = ["#FFF350", "#FFF350", "#FFFFFF", "#FFFFFF"];
 
@@ -591,13 +592,12 @@ function createEarthParticles() {
     earthCtx.drawImage(earthImg, 0, 0, earthImg.width, earthImg.height);
     // 获取图片的像素数据, 每个像素点 对应四个数值: r g b a
     const earthImgData = earthCtx.getImageData(0, 0, earthImg.width, earthImg.height);
-    // console.log(earthImgData)
+    console.log(earthImgData)
     const BLINT_SPEED = 0.05;
     let positions = [];
     let materials = [];
     let sizes = [];
-    // 根据颜色分为8个数组
-    for (let i = 0; i < 9; i++) {
+    for (let i = 0; i < 2; i++) {
       positions[i] = {
         positions: []
       };
@@ -606,8 +606,7 @@ function createEarthParticles() {
       };
       const mat = new THREE.PointsMaterial({
         size: 4,  // 设置圈的尺寸
-        // color: new THREE.Color('#00FF6F'),  // 区域点颜色 0x03d98e ,
-        color: new THREE.Color(distractColors[i]),  // 区域点颜色 0x03d98e ,
+        color: new THREE.Color('#00FF6F'),  // 区域点颜色 0x03d98e ,
         map: new THREE.TextureLoader().load("images/dot.png"),
         depthWrite: false,
         depthTest: false,
@@ -635,13 +634,13 @@ function createEarthParticles() {
       let radians = (1 - Math.sin(i / step * Math.PI)) + .5; // 每个纬线圈内的角度均分
       for (let j = 0; j < step; j += radians) {
         let c = j / step, // 底图上的横向百分比  ==> 纬度方向的分割: 0~1
-          f = i / step; // 底图上的纵向百分比  ==> 经度方向的分割: 0~1
-        const colorIndex = isLandByUV(c, f);
-        if (colorIndex !== 10000) { // 根据横纵百分比判断在底图中的像素值的透明度是否为0
+          f = i / step, // 底图上的纵向百分比  ==> 经度方向的分割: 0~1
+          index = Math.floor(2 * Math.random());  // 随机结果 0 OR 1
+        const pos = positions[index];
+        const size = sizes[index];
+        if (isLandByUV(c, f)) { // 根据横纵百分比判断在底图中的像素值的透明度是否为0
           // 范围: -Math.PI/2 ~ Math.PI * 1.5
           // 必须是这个范围, 否则 点会与下面的图对不上
-          const pos = positions[colorIndex];
-          const size = sizes[colorIndex];
           spherical.theta = c * Math.PI * 2 - Math.PI / 2; // 横纵百分比转换为theta和phi夹角
           // spherical.theta = c * Math.PI * 2; // 横纵百分比转换为theta和phi夹角
           spherical.phi = f * Math.PI; // 横纵百分比转换为theta和phi夹角
@@ -686,8 +685,6 @@ function createEarthParticles() {
       bufferGeom.addAttribute('size', new THREE.BufferAttribute(typedArr2, 1));
       bufferGeom.computeBoundingSphere();
       let particle = new THREE.Points(bufferGeom, materials[i]);
-      // 为每个区域命名
-      particle.name = 'China-' + i;
       earthParticles.add(particle)
     }
 
@@ -702,18 +699,7 @@ function createEarthParticles() {
       // 计算坐标对应像素点的 A-alpha值, 判断透明度是否为0
       // 计算思路: 像素点为整数,(10, 20) 位置的点之前有 10 * 每行像素点数量 + 20
       // 每个像素点 的颜色由 4个数值记录, 所以再乘以4
-      // 计算每个点的颜色值
-      let pot_r = earthImgData.data[4 * (o * earthImgData.width + n)],
-        pot_g = earthImgData.data[4 * (o * earthImgData.width + n) + 1],
-        pot_b = earthImgData.data[4 * (o * earthImgData.width + n) + 2],
-        pot_a = earthImgData.data[4 * (o * earthImgData.width + n) + 3];
-      let index = 10000;
-      if (pot_a !== 0) {
-        index = colorIndex(pot_r, pot_g, pot_b);
-        // console.log('each pot r g b a', pot_r, pot_g, pot_b, pot_a, index)
-      }
-      return index
-      // return 0 !== earthImgData.data[4 * (o * earthImgData.width + n) + 3] // 查找底图中对应像素点的rgba值并判断
+      return 0 !== earthImgData.data[4 * (o * earthImgData.width + n) + 3] // 查找底图中对应像素点的rgba值并判断
     }
 
     scene.add(earthParticles);
@@ -742,16 +728,6 @@ function onWindowResize() {
   render();
 }
 
-function onMouseOver(evnet) {
-  event.preventDefault();
-  // 通过鼠标点击位置,计算出 raycaster 所需点的位置,以屏幕为中心点,范围 -1 到 1
-  // 鼠标文档坐标 转化为 空间坐标
-  mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
-  mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
-  mouseOverIntersects()
-}
-
-
 function onMouseClick(evnet) {
   event.preventDefault();
   // 通过鼠标点击位置,计算出 raycaster 所需点的位置,以屏幕为中心点,范围 -1 到 1
@@ -777,18 +753,12 @@ function getIntersects() {
       selectObject = intersects[0].object;
       controls.minDistance = 200;
       cameraMove(meshPositon);  // 阻塞；动画执行完后才会向后执行
+      // controlsChange();
       // 标记是否已经放大
+      // selectObject = undefined;
       moveEnd = true;
       controls.autoRotate = false;
-      // 弱化背景
-      earthParticles.children[100].material.size = 2;
-      earthParticles.children[100].material.opacity = 0.02;
-      // 进入中国视图
-      isChinaView = true;
-      earth.material.map = changeMapMaterial()
-      //  隐藏柱子
-      hexagon.visible = false;
-      scene.remove(lightCross)
+      // renderDiv(selectObject);
     }
   } else {
     selectObject = undefined;
@@ -798,56 +768,9 @@ function getIntersects() {
       // cameraReset();
       moveEnd = false;
       controls.autoRotate = true;
-      // 弱化背景
-      earthParticles.children[100].material.size = 4;
-      // 退出中国视图
-      isChinaView = false;
-      earth.material.map = changeMapMaterial()
-      // 显示柱子
-      hexagon.visible = false
-      scene.add(lightCross)
     }
 
   }
-
-}
-
-// 获取与射线相交的对象数组
-function mouseOverIntersects() {
-  //通过鼠标点击的位置(二维坐标)和当前相机的矩阵计算出射线位置
-  raycaster.setFromCamera(mouse, camera);
-  // 获取与射线相交的对象数组，其中的元素按照距离排序，越近的越靠前
-  let intersects = raycaster.intersectObjects(earthParticles.children);
-  if (intersects.length !== 0) {
-    let target = intersects[0].object;
-    if (target.name !== '' && target.name !== 'China-0') {
-      if (mouseOverObject !== undefined) {
-        // 每次需要将上一个对象属性恢复
-        mouseOverObject.material.size = 4;
-        mouseOverObject = undefined;
-      }
-      // 标记鼠标悬浮对象, 并修改点的尺寸
-      mouseOverObject = intersects[0].object;
-      mouseOverObject.material.size = 2;
-    } else {
-      // 鼠标移到其他国家, 恢复hover 状态
-      if (mouseOverObject !== undefined) {
-        mouseOverObject.material.size = 4;
-        mouseOverObject = undefined
-      }
-    }
-  } else {
-  }
-}
-
-function hoverPot() {
-  // if (mouseOverObject !== undefined) {
-  //   mouseOverObject.material.size = 10;
-  //   mouseOverObject.material.color = new THREE.Color('rgb(207,49,43)');
-  // } else {
-  //   mouseOverObject.material.size = 4;
-  //   mouseOverObject.material.color = mouseOverColor;
-  // }
 
 }
 
@@ -878,7 +801,7 @@ function cameraMove(finalPosition) {
   // 添加相机前后运动
   let positions = [
     cameraPosition.x, cameraPosition.y, cameraPosition.z,
-    finalPosition.x * cameraDiv + 50, finalPosition.y * cameraDiv - 20, finalPosition.z * cameraDiv - 20,
+    finalPosition.x * cameraDiv, finalPosition.y * cameraDiv, finalPosition.z * cameraDiv,
     // finalPosition.x * cameraDiv, finalPosition.y * cameraDiv, finalPosition.z * cameraDiv,
   ];
   console.log('positions', positions);
@@ -914,22 +837,12 @@ function cameraReset() {
   actionCamera.play()
 }
 
-function changeMapMaterial() {
-  let textureImg = "images/havingChinaLine.png";
-  if (isChinaView) {
-    console.log('... china inner')
-    textureImg = 'images/ChinaInner.png';
-  }
-  return loader.load(textureImg)
-}
-
 
 // ========================================== 添加运动事件 ========================================
 function animate() {
   render();
   requestAnimationFrame(animate);
-  // renderDiv(selectObject);
-  hoverPot();
+  renderDiv(selectObject);
   // 更新controls；放在animate内, 不要放在render里
   controls.update(clock.getDelta());
 
