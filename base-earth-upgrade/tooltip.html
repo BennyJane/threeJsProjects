@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Title</title>
+  <style type="text/css">
+    #tooltip {
+      position: absolute;
+      top: 200px;
+      left: 300px;
+      border-radius: 10px;
+      padding: 20px 25px;
+      box-sizing: border-box;
+    }
+
+    .tooltip-title {
+      font-size: 28px;
+      line-height: 40px;
+    }
+
+    .tooltip-sub-title {
+      color: #CCCCCC;
+      font-size: 20px;
+      line-height: 24px;
+      margin-top: 5px;
+      margin-bottom: 19px;
+    }
+
+    .tooltip-number {
+      color: #000000;
+      font-size: 16px;
+      line-height: 22px;
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+    }
+
+    .tooltip-pot{
+      /*color: black;*/
+      background-color: black;
+      width: 8px;
+      height: 8px;
+      border-radius: 20px;
+      margin-right: 17px;
+    }
+    .tooltip-unit{
+      color: #999999;
+      font-size: 12px;
+      margin-left: 4px;
+    }
+
+  </style>
+</head>
+<body style="background-color: black; margin: 0 auto">
+<div id='tooltip' style="background-color: #FFFFFF; width: 380px; height: 160px">
+  <div class="tooltip-title">
+    中国
+  </div>
+  <div class="tooltip-sub-title">
+    China
+  </div>
+  <div class="tooltip-number">
+    <div class="tooltip-pot"></div>
+    <span style="margin-right: 20px">2019年总发电量</span>
+    <span>49794.7</span>
+    <span class="tooltip-unit">千万瓦时</span>
+  </div>
+</div>
+
+</body>
+</html>

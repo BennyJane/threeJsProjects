@@ -1,0 +1,47 @@
+#tooltip {
+    position: absolute;
+    /*top: 200px;*/
+    /*left: 300px;*/
+    border-radius: 10px;
+    padding: 20px 25px;
+    box-sizing: border-box;
+    background-color: #FFFFFF;
+}
+
+.tooltip-title {
+    color: black;
+    font-size: 28px;
+    line-height: 40px;
+}
+
+.tooltip-sub-title {
+    color: #CCCCCC;
+    font-size: 20px;
+    line-height: 24px;
+    margin-top: 5px;
+    margin-bottom: 19px;
+}
+
+.tooltip-number {
+    color: #000000;
+    font-size: 16px;
+    line-height: 22px;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+}
+
+.tooltip-pot {
+    /*color: black;*/
+    background-color: black;
+    width: 8px;
+    height: 8px;
+    border-radius: 20px;
+    margin-right: 17px;
+}
+
+.tooltip-unit {
+    color: #999999;
+    font-size: 12px;
+    margin-left: 4px;
+}

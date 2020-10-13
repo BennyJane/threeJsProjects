@@ -724,7 +724,7 @@ function addMoon() {
   let rList = [295, 268,];
   let edgList = [Math.PI, Math.PI * 1.34];
   for (let i in rList) {
-    let edg = edgList[i]
+    let edg = edgList[i];
     let l = moonLine(rList[i], edg);
     moonGroup.add(l)
   }
@@ -772,9 +772,9 @@ function getIntersects() {
   if (intersects.length !== 0 && intersects[0].object instanceof THREE.Mesh) {
     let target = intersects[0].object;
     if (target.name !== '') {
-      console.log(intersects);
+      // console.log(intersects);
       let meshPositon = target.position;
-      selectObject = intersects[0].object;
+      // selectObject = intersects[0].object;
       controls.minDistance = 200;
       cameraMove(meshPositon);  // 阻塞；动画执行完后才会向后执行
       // 标记是否已经放大
@@ -782,16 +782,17 @@ function getIntersects() {
       controls.autoRotate = false;
       // 弱化背景
       earthParticles.children[100].material.size = 2;
-      earthParticles.children[100].material.opacity = 0.02;
+      earthParticles.children[100].material.opacity = 0.5;
+      earthParticles.children[100].material.needsUpdate = true;
       // 进入中国视图
       isChinaView = true;
-      earth.material.map = changeMapMaterial()
+      earth.material.map = changeMapMaterial();
       //  隐藏柱子
       hexagon.visible = false;
       scene.remove(lightCross)
     }
   } else {
-    selectObject = undefined;
+    // selectObject = undefined;
     if (moveEnd === true) {
       controls.minDistance = 550;
       // todo 修改为动画，添加过渡效果
@@ -799,12 +800,12 @@ function getIntersects() {
       moveEnd = false;
       controls.autoRotate = true;
       // 弱化背景
-      earthParticles.children[100].material.size = 4;
+      // earthParticles.children[100].material.size = 4;
       // 退出中国视图
       isChinaView = false;
-      earth.material.map = changeMapMaterial()
+      earth.material.map = changeMapMaterial();
       // 显示柱子
-      hexagon.visible = false
+      hexagon.visible = true;
       scene.add(lightCross)
     }
 
@@ -836,7 +837,22 @@ function mouseOverIntersects() {
         mouseOverObject = undefined
       }
     }
+  }
+  // fixme 添加鼠标悬浮弹窗
+  intersects = raycaster.intersectObjects(hexagon.children);
+  if (intersects.length !== 0 && intersects[0].object instanceof THREE.Mesh) {
+    let target = intersects[0].object;
+    if (target.name !== '') {
+      // 暂停旋转
+      selectObject = intersects[0].object;
+      controls.autoRotate = false;
+    }
   } else {
+    // 鼠标移到其他国家, 恢复hover 状态
+    selectObject = undefined;
+    if (isChinaView === false) {
+      controls.autoRotate = true;
+    }
   }
 }
 
@@ -855,12 +871,26 @@ function hoverPot() {
 // 调整弹窗的位置
 function renderDiv(object) {
   let labelDom = document.getElementById("label");
-  if (object !== undefined && controls.autoRotate === false) {
+  if (object !== undefined && controls.autoRotate === false && isChinaView === false) {
     let halfWidth = window.innerWidth / 2;
     let halfHeight = window.innerHeight / 2;
     // 整个窗口中心点 0.0 ； x右边为正；y向上为正
     let vector = object.position.clone().project(camera);
-    labelDom.innerHTML = '国家: ' + object.name;
+    // labelDom.innerHTML = '国家: ' + object.name;
+    labelDom.innerHTML = `<div id='tooltip' style="background-color: #FFFFFF; width: 380px; height: 160px">
+  <div class="tooltip-title">
+    ${object.name}
+  </div>
+  <div class="tooltip-sub-title">
+    China
+  </div>
+  <div class="tooltip-number">
+    <div class="tooltip-pot"></div>
+    <span style="margin-right: 20px">2019年总发电量</span>
+    <span>49794.7</span>
+    <span class="tooltip-unit">千万瓦时</span>
+  </div>
+</div>`;
     // console.log('vector', vector)
     let leftDist = vector.x * halfWidth + halfWidth;
     let topDist = -1 * vector.y * halfHeight + halfHeight;
@@ -917,7 +947,7 @@ function cameraReset() {
 function changeMapMaterial() {
   let textureImg = "images/havingChinaLine.png";
   if (isChinaView) {
-    console.log('... china inner')
+    console.log('... china inner');
     textureImg = 'images/ChinaInner.png';
   }
   return loader.load(textureImg)
@@ -928,7 +958,7 @@ function changeMapMaterial() {
 function animate() {
   render();
   requestAnimationFrame(animate);
-  // renderDiv(selectObject);
+  renderDiv(selectObject);    // 渲染文本标签
   hoverPot();
   // 更新controls；放在animate内, 不要放在render里
   controls.update(clock.getDelta());
@@ -956,15 +986,30 @@ function animate() {
 
 // 球面粒子闪烁: 必须添加该动画,地区内的圆点才会显示 ==> 默认为透明的
   let objects = earthParticles.children;
-  objects.forEach(obj => {
-    let material = obj.material;
-    material.t_ += material.speed_;
-    // opacity_coef_=1
-    // 动态变化点的透明度
-    material.opacity = (Math.sin(material.t_) * material.delta_ + material.min_) * material.opacity_coef_ + 0.2;
-    // 更新材质
-    material.needsUpdate = true
-  })
+  if (!isChinaView) {
+    objects.forEach(obj => {
+      let material = obj.material;
+      material.t_ += material.speed_;
+      material.size = 4;
+      // 动态变化点的透明度
+      material.opacity = (Math.sin(material.t_) * material.delta_ + material.min_) * material.opacity_coef_ + 0.2;
+      // 更新材质
+      material.needsUpdate = true
+    })
+  } else {
+    objects.forEach(obj => {
+      let material = obj.material;
+      material.size = 3;
+      // 动态变化点的透明度
+      material.opacity = 0.98;
+      // 更新材质
+      material.needsUpdate = true;
+      // 将背景点设置为50%
+      if (obj.name === 'China-0') {
+        material.opacity = 0.5;
+      }
+    })
+  }
 }
 
 function render() {
