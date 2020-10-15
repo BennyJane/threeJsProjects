@@ -233,4 +233,12 @@ let mark = {
   ]
 };
 
-export {positionList, mark}
+let colors = ['rgba(17,255,0,1)', '#FF3426', '#2736FF', '#FFFFFF', '#009A65', '#FF00CC', '#FFF350'];
+// 第一个是圆点的颜色
+// let distractColors = ['rgba(0,255,111,1)', 'rgba(17,255,0,1)', 'rgba(255,52,38,1)', 'rgba(39,54,255,1)', 'rgba(255,255,255,1)',
+//   'rgba(0,154,101,1)', 'rgba(255,0,204,1)', 'rgba(255,243,80,1)'];
+
+let distractColors = ['rgba(0,255,111,1)', 'rgba(0,255,111,1)', 'rgba(0,255,111,1)', 'rgba(0,255,111,1)',
+'rgba(0,255,111,1)', 'rgba(0,255,111,1)', 'rgba(0,255,111,1)', 'rgba(0,255,111,1)', 'rgba(0,255,111,1)', ];
+
+export {positionList, mark, distractColors}
